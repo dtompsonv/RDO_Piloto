@@ -558,11 +558,11 @@
       <p class="section-label">Dados gerais da obra</p>
       <div class="grid cols-2">
         <div><label>Obra</label><input type="text" id="novaObra" placeholder="Ex: PE064 (SIRINHAÉM – IBIRATINGA)"></div>
-        <div><label>Local</label><input type="text" id="novoLocal" placeholder="Rodovia, trecho, extensão..."></div>
+        <div><label>Trecho</label><input type="text" id="novoLocal" placeholder="Rodovia, trecho, extensão..."></div>
       </div>
       <div class="grid cols-2" style="margin-top:12px;">
         <div><label>Contratada (empresa executora)</label><input type="text" id="novaContratada"></div>
-        <div><label>Responsável</label><input type="text" id="novoResponsavel"></div>
+        <div><label>Supervisora</label><input type="text" id="novoResponsavel"></div>
       </div>
       <div class="grid cols-2" style="margin-top:12px;">
         <div><label>N° Contrato — Obra</label><input type="text" id="novoContratoObra" placeholder="ex: 0043/2025"></div>
@@ -576,6 +576,42 @@
       <div class="modal-actions">
         <button class="btn btn-ghost" onclick="fecharModalObra()">Cancelar</button>
         <button class="btn btn-primary" onclick="salvarObra()">Salvar obra</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de solicitação de acesso -->
+<div class="modal-overlay" id="modalPermissao">
+  <div class="modal-content" style="max-width:520px;">
+    <div class="modal-head">
+      <h2>Solicitar Acesso</h2>
+      <button class="fechar" onclick="fecharModalPermissao()">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px; color:#5a6b7a; margin-bottom:16px;">
+        Para editar este documento, é necessário solicitar autorização ao administrador.
+      </p>
+      <div class="grid">
+        <div><label>E-mail</label><input type="email" id="permEmail" placeholder="seu@email.com"></div>
+        <div><label>Nome</label><input type="text" id="permNome" placeholder="Seu nome completo"></div>
+        <div><label>Empresa</label><input type="text" id="permEmpresa" placeholder="Nome da empresa"></div>
+        <div>
+          <label>Cargo</label>
+          <select id="permCargo">
+            <option value="">Selecione...</option>
+            <option>Responsável Técnico Construtora</option>
+            <option>Engenheiro Civil Supervisora</option>
+            <option>Gestor</option>
+            <option>Fiscal</option>
+            <option>Superintendente</option>
+            <option>Apoio Técnico</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="fecharModalPermissao()">Cancelar</button>
+        <button class="btn btn-primary" onclick="solicitarPermissao()">Solicitar acesso</button>
       </div>
     </div>
   </div>
@@ -669,11 +705,11 @@
         <input type="text" id="obra" placeholder="Ex: PE064 (SIRINHAÉM – IBIRATINGA)">
         <div class="periodo-txt" id="periodoTxt">Período do contrato: —</div>
       </div>
-      <div><label>Local</label><input type="text" id="local" placeholder="Rodovia, trecho, extensão..."></div>
+      <div><label>Trecho</label><input type="text" id="local" placeholder="Rodovia, trecho, extensão..."></div>
     </div>
     <div class="grid cols-2" style="margin-top:12px;">
       <div><label>Contratada (empresa executora)</label><input type="text" id="contratada"></div>
-      <div><label>Responsável</label><input type="text" id="responsavel"></div>
+      <div><label>Supervisora</label><input type="text" id="responsavel"></div>
     </div>
     <div class="grid cols-2" style="margin-top:12px;">
       <div><label>N° Contrato — Obra</label><input type="text" id="contratoObra" placeholder="ex: 0043/2025"></div>
@@ -794,38 +830,33 @@
   <!-- ASSINATURAS -->
   <section style="border-bottom:none;">
     <p class="section-label">Assinaturas / Aprovações</p>
-    <div class="assin-grid">
-      <div class="assin-col">
-        <div class="role-row">
-          <span class="role">Execução</span>
-          <select class="status-assin" data-assin="exec" onchange="atualizarStatusAssin('exec')"><option>Aguardando Aprovação</option><option>Aprovado</option><option>Reprovado</option></select>
-        </div>
-        <input type="text" placeholder="Nome — Eng. Residente" id="execNome">
-        <input type="email" placeholder="E-mail" id="execEmail">
-        <input type="text" placeholder="Empresa / cargo" id="execCargo">
-        <input type="datetime-local" id="execData">
-        <div class="assin-line">Assinatura</div>
-      </div>
+    <div class="assin-grid" style="grid-template-columns:1fr 1fr;">
       <div class="assin-col">
         <div class="role-row">
           <span class="role">Eng. Civil / Supervisão</span>
-          <select class="status-assin" data-assin="sup" onchange="atualizarStatusAssin('sup')"><option>Aguardando Aprovação</option><option>Aprovado</option><option>Reprovado</option></select>
         </div>
         <input type="text" placeholder="Nome — Eng. Civil" id="supNome">
         <input type="email" placeholder="E-mail" id="supEmail">
-        <input type="text" placeholder="Empresa / cargo" id="supCargo">
-        <input type="datetime-local" id="supData">
+        <label style="margin-top:8px;">Assinatura (imagem ou desenho)</label>
+        <div class="assin-upload" onclick="document.getElementById('assinSupInput').click()" style="border:1.5px dashed var(--line); border-radius:4px; padding:14px; text-align:center; cursor:pointer; color:#5a6b7a; font-size:12px; margin-bottom:8px;">
+          ➕ Clique para adicionar imagem
+        </div>
+        <input type="file" id="assinSupInput" accept="image/*" style="display:none;" onchange="carregarAssinatura(this, 'assinSupImg')">
+        <img id="assinSupImg" style="display:none; max-height:60px; max-width:100%; margin:0 auto 6px; border:1px solid var(--line); border-radius:3px;">
         <div class="assin-line">Assinatura</div>
       </div>
       <div class="assin-col">
         <div class="role-row">
           <span class="role">Fiscal DER/PE</span>
-          <select class="status-assin" data-assin="fisc" onchange="atualizarStatusAssin('fisc')"><option>Aguardando Aprovação</option><option>Aprovado</option><option>Reprovado</option></select>
         </div>
         <input type="text" placeholder="Nome — Eng. Fiscal DER" id="fiscNome">
         <input type="email" placeholder="E-mail" id="fiscEmail">
-        <input type="text" placeholder="DER/PE" id="fiscCargo">
-        <input type="datetime-local" id="fiscData">
+        <label style="margin-top:8px;">Assinatura (imagem ou desenho)</label>
+        <div class="assin-upload" onclick="document.getElementById('assinFiscInput').click()" style="border:1.5px dashed var(--line); border-radius:4px; padding:14px; text-align:center; cursor:pointer; color:#5a6b7a; font-size:12px; margin-bottom:8px;">
+          ➕ Clique para adicionar imagem
+        </div>
+        <input type="file" id="assinFiscInput" accept="image/*" style="display:none;" onchange="carregarAssinatura(this, 'assinFiscImg')">
+        <img id="assinFiscImg" style="display:none; max-height:60px; max-width:100%; margin:0 auto 6px; border:1px solid var(--line); border-radius:3px;">
         <div class="assin-line">Assinatura</div>
       </div>
     </div>
@@ -838,7 +869,6 @@
 
   <div class="actions">
     <button class="btn btn-ghost" onclick="limparTudo()">Limpar formulário</button>
-    <button class="btn btn-ghost" onclick="salvarRascunho()">Salvar rascunho (.json)</button>
     <button class="btn btn-primary" onclick="window.print()">Imprimir / Exportar PDF</button>
   </div>
 
@@ -1069,12 +1099,24 @@ function atualizarFotoBadge(){
 }
 
 // ---------- Assinaturas ----------
+function carregarAssinatura(input, imgId){
+  const file = input.files[0];
+  if(!file || !file.type.startsWith('image/')) return;
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    const img = document.getElementById(imgId);
+    img.src = ev.target.result;
+    img.style.display = 'block';
+    registrarModificacao();
+  };
+  reader.readAsDataURL(file);
+}
+
 function atualizarStatusAssin(qual){
   const sel = document.querySelector(`[data-assin="${qual}"]`);
+  if(!sel) return;
   sel.style.background = sel.value==='Aprovado' ? '#e6f3ea' : sel.value==='Reprovado' ? '#fbe9e7' : '#fbf1de';
   sel.style.color = sel.value==='Aprovado' ? '#2f6e46' : sel.value==='Reprovado' ? '#a23b2e' : '#9a6b12';
-  const dataField = document.getElementById(qual+'Data');
-  if(sel.value !== 'Aguardando Aprovação' && !dataField.value) dataField.value = agoraLocal();
   registrarModificacao();
 }
 document.querySelectorAll('.status-assin').forEach(s=>{
@@ -1170,6 +1212,68 @@ document.getElementById('logoInput').addEventListener('change', e=>{
   };
   reader.readAsDataURL(file);
 });
+
+// ============================================================
+// PERMISSÕES DE USUÁRIO
+// ============================================================
+let userPermissao = null;
+let unsubPermissao = null;
+
+function abrirModalPermissao(){
+  document.getElementById('modalPermissao').classList.add('visivel');
+}
+
+function fecharModalPermissao(){
+  document.getElementById('modalPermissao').classList.remove('visivel');
+}
+
+async function solicitarPermissao(){
+  const email = document.getElementById('permEmail').value.trim();
+  const nome = document.getElementById('permNome').value.trim();
+  const empresa = document.getElementById('permEmpresa').value.trim();
+  const cargo = document.getElementById('permCargo').value;
+  if(!email || !nome || !empresa || !cargo){
+    alert('Preencha todos os campos.');
+    return;
+  }
+  try{
+    await db.collection('solicitacoes').add({
+      email, nome, empresa, cargo,
+      userId: myUserId,
+      status: 'pendente',
+      criadoEm: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    fecharModalPermissao();
+    alert('Solicitação enviada! Aguarde a autorização do administrador.');
+  }catch(e){
+    console.error('Erro ao solicitar permissão:', e);
+    alert('Erro ao enviar solicitação.');
+  }
+}
+
+function verificarPermissao(){
+  if(!db) return;
+  if(unsubPermissao) unsubPermissao();
+  unsubPermissao = db.collection('usuarios').doc(myUserId).onSnapshot(doc=>{
+    if(doc.exists){
+      userPermissao = doc.data();
+      if(userPermissao.permissao === 'edicao'){
+        document.querySelectorAll('.sheet input, .sheet textarea, .sheet select, .sheet button, .sheet [contenteditable]').forEach(el=>{
+          el.disabled = false;
+          el.style.pointerEvents = '';
+        });
+      } else if(userPermissao.permissao === 'visualizacao'){
+        document.querySelectorAll('.sheet input, .sheet textarea, .sheet select, .sheet button, .sheet [contenteditable]').forEach(el=>{
+          el.disabled = true;
+          el.style.pointerEvents = 'none';
+        });
+      }
+    } else {
+      // Usuário não autorizado - mostrar modal de solicitação
+      setTimeout(()=>abrirModalPermissao(), 1000);
+    }
+  });
+}
 
 // ============================================================
 // OBRAS - CADASTRO E LISTAGEM
@@ -1419,6 +1523,8 @@ function initFirebase(){
     setCollabStatus('online', 'Conectado');
     // Carregar lista de obras na página principal
     carregarObras();
+    // Verificar permissão do usuário
+    verificarPermissao();
     // Verificar se veio com obra na URL
     setupDocFromURL();
   }catch(e){
