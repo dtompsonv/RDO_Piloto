@@ -1062,11 +1062,27 @@ let myUserName = '';
 const STORAGE_KEY = 'rdo_firebase_config';
 const USER_KEY = 'rdo_user_name';
 
+// Configuração embutida do Firebase (projeto rdo-piloto)
+// Permite que qualquer pessoa que abra o link já esteja conectada automaticamente
+const EMBEDDED_FIREBASE_CONFIG = {
+  "apiKey": "AIzaSyAYd1LB-i5WL2IFrw3TfHBKc6j7MrJ6QK8",
+  "authDomain": "rdo-piloto.firebaseapp.com",
+  "projectId": "rdo-piloto",
+  "storageBucket": "rdo-piloto.firebasestorage.app",
+  "messagingSenderId": "817337792703",
+  "appId": "1:817337792703:web:d9b331e29291bd19062e0a"
+};
+
 function getConfigFromStorage(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
     return raw ? JSON.parse(raw) : null;
   }catch(e){ return null; }
+}
+
+function getEffectiveConfig(){
+  // Prioriza configuração salva manualmente, senão usa a embutida
+  return getConfigFromStorage() || EMBEDDED_FIREBASE_CONFIG;
 }
 
 function getUserName(){
@@ -1114,7 +1130,7 @@ function limparConfigFirebase(){
 }
 
 function initFirebase(){
-  const config = getConfigFromStorage();
+  const config = getEffectiveConfig();
   if(!config) return;
   try{
     app = firebase.initializeApp(config);
@@ -1420,13 +1436,14 @@ calcularQuantitativos();
 calcularDatas();
 atualizarBadges();
 
-// Carregar configuração salva
+// Inicializar automaticamente com a configuração embutida
+// (ou com a configuração salva manualmente, se existir)
 const savedConfig = getConfigFromStorage();
 if(savedConfig){
   document.getElementById('firebaseConfigInput').value = JSON.stringify(savedConfig);
   document.getElementById('userNameInput').value = getUserName();
-  initFirebase();
 }
+initFirebase();
 </script>
 
 </body>
