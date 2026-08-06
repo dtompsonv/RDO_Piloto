@@ -488,6 +488,12 @@
     border-top:1px dashed var(--line); font-family:var(--mono); font-size:10px; color:#8492a0;
   }
   .obra-card .btn{padding:6px 12px; font-size:11px;}
+  .obra-card .btn-excluir{
+    background:none; border:1px solid var(--danger); color:var(--danger);
+    padding:6px 10px; font-size:10px; font-family:var(--mono); text-transform:uppercase;
+    cursor:pointer; border-radius:3px; margin-left:6px;
+  }
+  .obra-card .btn-excluir:hover{background:var(--danger-soft);}
   .obras-vazio{
     text-align:center; padding:40px 20px; color:#5a6b7a; font-family:var(--sans);
   }
@@ -516,6 +522,136 @@
   .modal-actions{
     display:flex; gap:10px; justify-content:flex-end; padding-top:16px; margin-top:16px;
     border-top:1px solid var(--line);
+  }
+
+  /* ===== Layout RDO com calendário lateral ===== */
+  .rdo-layout{
+    max-width:1080px;
+    margin:0 auto;
+    display:none;
+    gap:16px;
+    align-items:flex-start;
+  }
+  .rdo-layout.visivel{display:flex;}
+  .rdo-sidebar{
+    flex:0 0 300px;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:4px;
+    box-shadow:0 2px 12px rgba(0,0,0,0.1);
+    padding:0 0 14px;
+    position:sticky;
+    top:16px;
+  }
+  .rdo-main{
+    flex:1;
+    min-width:0;
+  }
+  .rdo-main .sheet{max-width:100%;}
+  .cal-head{
+    background:var(--accent);
+    color:#fff;
+    padding:12px 14px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    border-radius:3px 3px 0 0;
+  }
+  .cal-head .cal-titulo{
+    font-family:var(--serif);
+    font-size:14px;
+    font-weight:600;
+    text-transform:capitalize;
+  }
+  .cal-btn{
+    background:rgba(255,255,255,0.15);
+    border:1px solid rgba(255,255,255,0.35);
+    color:#fff;
+    width:26px;
+    height:26px;
+    border-radius:3px;
+    cursor:pointer;
+    font-size:14px;
+    line-height:1;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .cal-btn:hover{background:rgba(255,255,255,0.3);}
+  .cal-dias-semana{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    gap:2px;
+    padding:10px 10px 0;
+    font-family:var(--mono);
+    font-size:9px;
+    text-transform:uppercase;
+    color:#8492a0;
+    text-align:center;
+    letter-spacing:0.5px;
+  }
+  .cal-grid{
+    display:grid;
+    grid-template-columns:repeat(7,1fr);
+    gap:2px;
+    padding:6px 10px 10px;
+  }
+  .cal-dia{
+    aspect-ratio:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    border:1px solid transparent;
+    border-radius:3px;
+    cursor:pointer;
+    font-family:var(--mono);
+    font-size:12px;
+    color:var(--ink);
+    background:#f7f8fa;
+    transition:0.12s;
+    position:relative;
+  }
+  .cal-dia:hover{background:var(--accent-soft); border-color:var(--accent-2);}
+  .cal-dia.vazio{visibility:hidden; pointer-events:none;}
+  .cal-dia.hoje{border-color:var(--accent-2); font-weight:700;}
+  .cal-dia.selecionado{
+    background:var(--accent);
+    border-color:var(--accent);
+    color:#fff;
+    font-weight:700;
+  }
+  .cal-dia.has-rdo::after{
+    content:"";
+    width:5px;
+    height:5px;
+    border-radius:50%;
+    background:var(--ok);
+    position:absolute;
+    bottom:3px;
+  }
+  .cal-dia.selecionado.has-rdo::after{background:#fff;}
+  .cal-dia.futuro{opacity:0.45;}
+  .cal-rodape{
+    padding:10px 14px 0;
+    border-top:1px solid var(--line);
+    margin-top:6px;
+    font-family:var(--mono);
+    font-size:10px;
+    color:#5a6b7a;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
+  .cal-legenda{display:flex; gap:8px; align-items:center; font-size:9.5px;}
+  .cal-legenda .ponto{width:7px; height:7px; border-radius:50%; display:inline-block;}
+  .cal-legenda .ponto.rdo{background:var(--ok);}
+  .cal-legenda .ponto.hoje{background:var(--accent-2);}
+  @media (max-width:900px){
+    .rdo-layout{flex-direction:column;}
+    .rdo-sidebar{flex:1 1 auto; width:100%; position:static; max-height:none;}
+    .cal-grid{grid-template-columns:repeat(7,1fr);}
+    .cal-dia{aspect-ratio:auto; padding:8px 0; min-height:36px;}
   }
 
   @media print{
@@ -670,6 +806,30 @@
   <div class="history-body hidden" id="historyBody"></div>
 </div>
 
+<div class="rdo-layout">
+
+  <!-- Calendário lateral -->
+  <aside class="rdo-sidebar" id="rdoSidebar">
+    <div class="cal-head">
+      <button class="cal-btn" onclick="calMudarMes(-1)">‹</button>
+      <span class="cal-titulo" id="calTitulo">—</span>
+      <button class="cal-btn" onclick="calMudarMes(1)">›</button>
+    </div>
+    <div class="cal-dias-semana">
+      <span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="cal-rodape">
+      <span id="calDataSelecionada">—</span>
+      <span class="cal-legenda">
+        <span><span class="ponto rdo"></span> RDO</span>
+        <span><span class="ponto hoje"></span> Hoje</span>
+      </span>
+    </div>
+  </aside>
+
+  <div class="rdo-main">
+
 <div class="sheet">
 
   <div class="titlebar">
@@ -686,13 +846,7 @@
     </div>
     <div class="titlebar-right">
       <button class="btn-voltar" onclick="voltarParaObras()">← Obras</button>
-      <select class="status-geral st-rascunho" id="statusGeral" onchange="atualizarStatusGeral()">
-        <option value="Rascunho">Rascunho</option>
-        <option value="Revisar Relatório">Revisar Relatório</option>
-        <option value="Aguardando Aprovação">Aguardando Aprovação</option>
-        <option value="Aprovado">Aprovado</option>
-      </select>
-      <div class="rdo-num">Relatório n° <input type="text" id="rdoNum" placeholder="000"></div>
+      <div class="rdo-num">Data do relatório: <strong id="rdoDataCabecalho">—</strong></div>
     </div>
   </div>
 
@@ -829,11 +983,25 @@
 
   <!-- ASSINATURAS -->
   <section style="border-bottom:none;">
-    <p class="section-label">Assinaturas / Aprovações</p>
-    <div class="assin-grid" style="grid-template-columns:1fr 1fr;">
+    <p class="section-label">Assinatura</p>
+    <div class="assin-grid" style="grid-template-columns:1fr 1fr 1fr;">
       <div class="assin-col">
         <div class="role-row">
-          <span class="role">Eng. Civil / Supervisão</span>
+          <span class="role">Responsável Técnico (Construtora)</span>
+        </div>
+        <input type="text" placeholder="Nome — Resp. Técnico" id="execNome">
+        <input type="email" placeholder="E-mail" id="execEmail">
+        <label style="margin-top:8px;">Assinatura (imagem ou desenho)</label>
+        <div class="assin-upload" onclick="document.getElementById('assinExecInput').click()" style="border:1.5px dashed var(--line); border-radius:4px; padding:14px; text-align:center; cursor:pointer; color:#5a6b7a; font-size:12px; margin-bottom:8px;">
+          ➕ Clique para adicionar imagem
+        </div>
+        <input type="file" id="assinExecInput" accept="image/*" style="display:none;" onchange="carregarAssinatura(this, 'assinExecImg')">
+        <img id="assinExecImg" style="display:none; max-height:60px; max-width:100%; margin:0 auto 6px; border:1px solid var(--line); border-radius:3px;">
+        <div class="assin-line">Assinatura</div>
+      </div>
+      <div class="assin-col">
+        <div class="role-row">
+          <span class="role">Engenheiro Civil (Supervisora)</span>
         </div>
         <input type="text" placeholder="Nome — Eng. Civil" id="supNome">
         <input type="email" placeholder="E-mail" id="supEmail">
@@ -869,10 +1037,14 @@
 
   <div class="actions">
     <button class="btn btn-ghost" onclick="limparTudo()">Limpar formulário</button>
-    <button class="btn btn-primary" onclick="window.print()">Imprimir / Exportar PDF</button>
+    <button class="btn btn-primary" onclick="salvarRascunho()">💾 Salvar</button>
+    <button class="btn btn-ghost" onclick="window.print()">Imprimir / Exportar PDF</button>
   </div>
 
 </div>
+
+  </div><!-- /.rdo-main -->
+</div><!-- /.rdo-layout -->
 
 <script>
 const DIAS = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
@@ -954,6 +1126,9 @@ function calcularDatas(){
   const dIni = document.getElementById('dataInicio').value;
   const dFim = document.getElementById('dataFim').value;
   const prazoInput = document.getElementById('prazoContratual');
+
+  // Atualizar data no cabeçalho
+  document.getElementById('rdoDataCabecalho').textContent = dRel ? formatBR(dRel) : '—';
 
   document.getElementById('diaSemana').value = dRel ? DIAS[new Date(...dRel.split('-').map((v,i)=>i===1?v-1:Number(v))).getDay()] : '';
   // safer weekday calc
@@ -1187,16 +1362,102 @@ function coletarDados(){
 }
 
 function salvarRascunho(){
+  // Se estiver conectado ao Firebase, salva no banco
+  if(db && docId){
+    salvarNoFirebase().then(()=>{
+      alert('RDO salvo com sucesso!');
+    });
+    return;
+  }
+  // Fallback: baixar JSON local
   const dados = coletarDados();
   const blob = new Blob([JSON.stringify(dados, null, 2)], {type:'application/json'});
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const num = document.getElementById('rdoNum').value || 'sem-numero';
   const data = document.getElementById('dataRelatorio').value || 'sem-data';
   a.href = url;
-  a.download = `RDO-${num}-${data}.json`;
+  a.download = `RDO-${data}.json`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// CALENDÁRIO LATERAL
+// ============================================================
+let calAno = new Date().getFullYear();
+let calMes = new Date().getMonth();
+let calDiasComRDO = new Set();
+
+function calMudarMes(delta){
+  calMes += delta;
+  if(calMes < 0){ calMes = 11; calAno--; }
+  if(calMes > 11){ calMes = 0; calAno++; }
+  renderCalendario();
+}
+
+function calDataISO(ano, mes, dia){
+  return `${ano}-${String(mes+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+}
+
+function renderCalendario(){
+  const grid = document.getElementById('calGrid');
+  const titulo = document.getElementById('calTitulo');
+  grid.innerHTML = '';
+  const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  titulo.textContent = `${meses[calMes]} ${calAno}`;
+
+  const primeiroDia = new Date(calAno, calMes, 1).getDay();
+  const diasNoMes = new Date(calAno, calMes + 1, 0).getDate();
+  const hoje = new Date();
+  const hojeISO = calDataISO(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+  const dataSelecionada = document.getElementById('dataRelatorio').value;
+
+  // Células vazias antes do primeiro dia
+  for(let i=0; i<primeiroDia; i++){
+    const vazio = document.createElement('div');
+    vazio.className = 'cal-dia vazio';
+    grid.appendChild(vazio);
+  }
+
+  // Dias do mês
+  for(let d=1; d<=diasNoMes; d++){
+    const iso = calDataISO(calAno, calMes, d);
+    const div = document.createElement('div');
+    div.className = 'cal-dia';
+    div.textContent = d;
+    div.dataset.data = iso;
+
+    if(iso === hojeISO) div.classList.add('hoje');
+    if(iso === dataSelecionada) div.classList.add('selecionado');
+    if(calDiasComRDO.has(iso)) div.classList.add('has-rdo');
+    if(iso > hojeISO) div.classList.add('futuro');
+
+    div.onclick = ()=>{
+      document.getElementById('dataRelatorio').value = iso;
+      document.getElementById('calDataSelecionada').textContent = formatBR(iso);
+      calcularDatas();
+      renderCalendario();
+    };
+
+    grid.appendChild(div);
+  }
+
+  document.getElementById('calDataSelecionada').textContent = dataSelecionada ? formatBR(dataSelecionada) : '—';
+}
+
+// Carregar dias que já possuem RDO no Firebase
+function carregarDiasComRDO(){
+  if(!db || !obraAtualId) return;
+  db.collection('rdos').where('obraId', '==', obraAtualId).get().then(snap=>{
+    calDiasComRDO.clear();
+    snap.forEach(doc=>{
+      const dados = doc.data().dados;
+      if(dados && dados.campos && dados.campos.dataRelatorio){
+        calDiasComRDO.add(dados.campos.dataRelatorio);
+      }
+    });
+    renderCalendario();
+  }).catch(e=>console.error('Erro ao carregar dias com RDO:', e));
 }
 
 // ---------- Logo do cabeçalho ----------
@@ -1364,7 +1625,10 @@ function carregarObras(){
         </div>
         <div class="rodape">
           <span>${o.responsavel || '—'}</span>
-          <button class="btn btn-primary" onclick="abrirRDOObra('${doc.id}')">Abrir RDO</button>
+          <div>
+            <button class="btn btn-primary" onclick="abrirRDOObra('${doc.id}')">Abrir RDO</button>
+            <button class="btn-excluir" onclick="excluirObra('${doc.id}')">Excluir</button>
+          </div>
         </div>
       `;
       grid.appendChild(card);
@@ -1396,14 +1660,36 @@ function abrirRDOObra(obraId){
     // Mostrar formulário RDO
     document.getElementById('paginaObras').classList.remove('visivel');
     document.querySelector('.sheet').classList.add('visivel');
+    document.querySelector('.rdo-layout').classList.add('visivel');
     document.getElementById('collabBar').classList.remove('hidden');
     document.getElementById('historyPanel').classList.remove('hidden');
     // Criar novo documento RDO para esta obra
     criarNovoDoc(obraId);
+    // Carregar dias com RDO no calendário
+    carregarDiasComRDO();
   }).catch(e=>{
     console.error('Erro ao buscar obra:', e);
     alert('Erro ao abrir obra.');
   });
+}
+
+async function excluirObra(obraId){
+  if(!confirm('Excluir esta obra? Todos os RDOs associados também serão excluídos.')) return;
+  try{
+    // Excluir RDOs da obra
+    const rdos = await db.collection('rdos').where('obraId', '==', obraId).get();
+    const batch = db.batch();
+    rdos.forEach(doc=>{
+      batch.delete(doc.ref);
+    });
+    // Excluir a obra
+    batch.delete(db.collection('obras').doc(obraId));
+    await batch.commit();
+    alert('Obra excluída com sucesso!');
+  }catch(e){
+    console.error('Erro ao excluir obra:', e);
+    alert('Erro ao excluir obra.');
+  }
 }
 
 function voltarParaObras(){
@@ -1413,6 +1699,7 @@ function voltarParaObras(){
   docId = null;
   obraAtualId = null;
   document.querySelector('.sheet').classList.remove('visivel');
+  document.querySelector('.rdo-layout').classList.remove('visivel');
   document.getElementById('collabBar').classList.add('hidden');
   document.getElementById('historyPanel').classList.add('hidden');
   document.getElementById('paginaObras').classList.add('visivel');
@@ -1826,6 +2113,7 @@ addAtividade();
 calcularQuantitativos();
 calcularDatas();
 atualizarBadges();
+renderCalendario();
 
 // Inicializar automaticamente com a configuração embutida
 // (ou com a configuração salva manualmente, se existir)
