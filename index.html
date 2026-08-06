@@ -717,42 +717,6 @@
   </div>
 </div>
 
-<!-- Modal de solicitação de acesso -->
-<div class="modal-overlay" id="modalPermissao">
-  <div class="modal-content" style="max-width:520px;">
-    <div class="modal-head">
-      <h2>Solicitar Acesso</h2>
-      <button class="fechar" onclick="fecharModalPermissao()">×</button>
-    </div>
-    <div class="modal-body">
-      <p style="font-size:13px; color:#5a6b7a; margin-bottom:16px;">
-        Para editar este documento, é necessário solicitar autorização ao administrador.
-      </p>
-      <div class="grid">
-        <div><label>E-mail</label><input type="email" id="permEmail" placeholder="seu@email.com"></div>
-        <div><label>Nome</label><input type="text" id="permNome" placeholder="Seu nome completo"></div>
-        <div><label>Empresa</label><input type="text" id="permEmpresa" placeholder="Nome da empresa"></div>
-        <div>
-          <label>Cargo</label>
-          <select id="permCargo">
-            <option value="">Selecione...</option>
-            <option>Responsável Técnico Construtora</option>
-            <option>Engenheiro Civil Supervisora</option>
-            <option>Gestor</option>
-            <option>Fiscal</option>
-            <option>Superintendente</option>
-            <option>Apoio Técnico</option>
-          </select>
-        </div>
-      </div>
-      <div class="modal-actions">
-        <button class="btn btn-ghost" onclick="fecharModalPermissao()">Cancelar</button>
-        <button class="btn btn-primary" onclick="solicitarPermissao()">Solicitar acesso</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- Painel de configuração Firebase -->
 <div class="config-panel" id="configPanel">
   <div class="config-head">
@@ -1475,68 +1439,6 @@ document.getElementById('logoInput').addEventListener('change', e=>{
 });
 
 // ============================================================
-// PERMISSÕES DE USUÁRIO
-// ============================================================
-let userPermissao = null;
-let unsubPermissao = null;
-
-function abrirModalPermissao(){
-  document.getElementById('modalPermissao').classList.add('visivel');
-}
-
-function fecharModalPermissao(){
-  document.getElementById('modalPermissao').classList.remove('visivel');
-}
-
-async function solicitarPermissao(){
-  const email = document.getElementById('permEmail').value.trim();
-  const nome = document.getElementById('permNome').value.trim();
-  const empresa = document.getElementById('permEmpresa').value.trim();
-  const cargo = document.getElementById('permCargo').value;
-  if(!email || !nome || !empresa || !cargo){
-    alert('Preencha todos os campos.');
-    return;
-  }
-  try{
-    await db.collection('solicitacoes').add({
-      email, nome, empresa, cargo,
-      userId: myUserId,
-      status: 'pendente',
-      criadoEm: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    fecharModalPermissao();
-    alert('Solicitação enviada! Aguarde a autorização do administrador.');
-  }catch(e){
-    console.error('Erro ao solicitar permissão:', e);
-    alert('Erro ao enviar solicitação.');
-  }
-}
-
-function verificarPermissao(){
-  if(!db) return;
-  if(unsubPermissao) unsubPermissao();
-  unsubPermissao = db.collection('usuarios').doc(myUserId).onSnapshot(doc=>{
-    if(doc.exists){
-      userPermissao = doc.data();
-      if(userPermissao.permissao === 'edicao'){
-        document.querySelectorAll('.sheet input, .sheet textarea, .sheet select, .sheet button, .sheet [contenteditable]').forEach(el=>{
-          el.disabled = false;
-          el.style.pointerEvents = '';
-        });
-      } else if(userPermissao.permissao === 'visualizacao'){
-        document.querySelectorAll('.sheet input, .sheet textarea, .sheet select, .sheet button, .sheet [contenteditable]').forEach(el=>{
-          el.disabled = true;
-          el.style.pointerEvents = 'none';
-        });
-      }
-    } else {
-      // Usuário não autorizado - mostrar modal de solicitação
-      setTimeout(()=>abrirModalPermissao(), 1000);
-    }
-  });
-}
-
-// ============================================================
 // OBRAS - CADASTRO E LISTAGEM
 // ============================================================
 let obraAtualId = null;
@@ -1810,8 +1712,6 @@ function initFirebase(){
     setCollabStatus('online', 'Conectado');
     // Carregar lista de obras na página principal
     carregarObras();
-    // Verificar permissão do usuário
-    verificarPermissao();
     // Verificar se veio com obra na URL
     setupDocFromURL();
   }catch(e){
