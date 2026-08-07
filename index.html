@@ -1133,6 +1133,7 @@ function calcularDatas(){
 // ---------- Status geral ----------
 function atualizarStatusGeral(){
   const sel = document.getElementById('statusGeral');
+  if(!sel) return;
   sel.className = 'status-geral';
   const map = {'Rascunho':'st-rascunho','Revisar Relatório':'st-revisar','Aguardando Aprovação':'st-aguardando','Aprovado':'st-aprovado'};
   sel.classList.add(map[sel.value]);
@@ -1312,12 +1313,15 @@ function coletarDados(){
     dados.ocorrencias.push({autor:inputs[0].value, data:inputs[1].value, texto:e.querySelector('textarea').value});
   });
   ['exec','sup','fisc'].forEach(q=>{
+    const selAssin = document.querySelector(`[data-assin="${q}"]`);
+    const elCargo = document.getElementById(q+'Cargo');
+    const elData = document.getElementById(q+'Data');
     dados.assinaturas[q] = {
-      status: document.querySelector(`[data-assin="${q}"]`).value,
+      status: selAssin ? selAssin.value : 'Aguardando Aprovação',
       nome: document.getElementById(q+'Nome').value,
       email: document.getElementById(q+'Email').value,
-      cargo: document.getElementById(q+'Cargo').value,
-      data: document.getElementById(q+'Data').value
+      cargo: elCargo ? elCargo.value : '',
+      data: elData ? elData.value : ''
     };
   });
   return dados;
@@ -1765,7 +1769,31 @@ async function criarNovoDoc(obraId){
     subscribeDoc();
   }catch(e){
     console.error('Erro ao criar documento:', e);
-    setCollabStatus('offline', 'Erro ao criar documento');
+    // Identificar o motivo real do erro
+    let motivo = 'Erro ao criar documento';
+    if(e && e.code){
+      switch(e.code){
+        case 'permission-denied':
+          motivo = 'Permissão negada — verifique as regras do Firestore no Firebase Console';
+          break;
+        case 'unavailable':
+          motivo = 'Firebase indisponível — verifique sua conexão com a internet';
+          break;
+        case 'not-found':
+          motivo = 'Firestore não encontrado — verifique se o Firestore Database está ativado no Firebase Console';
+          break;
+        case 'failed-precondition':
+          motivo = 'Firestore não ativado — ative o Firestore Database no Firebase Console';
+          break;
+        default:
+          motivo = 'Erro ao criar documento: ' + (e.message || e.code || 'erro desconhecido');
+      }
+    } else if(e && e.message){
+      motivo = 'Erro ao criar documento: ' + e.message;
+    }
+    setCollabStatus('offline', motivo);
+    // Fallback local: permite preencher o RDO mesmo sem Firebase
+    alert(motivo + '\n\nO RDO será aberto em modo local. Use o botão "💾 Salvar" para baixar o arquivo JSON.');
   }
 }
 
@@ -1855,8 +1883,10 @@ function aplicarDados(dados){
       if(sel) sel.value = a.status || 'Aguardando Aprovação';
       document.getElementById(q+'Nome').value = a.nome || '';
       document.getElementById(q+'Email').value = a.email || '';
-      document.getElementById(q+'Cargo').value = a.cargo || '';
-      document.getElementById(q+'Data').value = a.data || '';
+      const elCargo = document.getElementById(q+'Cargo');
+      const elData = document.getElementById(q+'Data');
+      if(elCargo) elCargo.value = a.cargo || '';
+      if(elData) elData.value = a.data || '';
       atualizarStatusAssin(q);
     });
   }
