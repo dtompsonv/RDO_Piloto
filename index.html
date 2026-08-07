@@ -278,7 +278,6 @@
   td input, td select{border:none; border-bottom:1px solid transparent; padding:4px 2px;}
   td input:focus, td select:focus{border-bottom:1px solid var(--accent-2);}
   .col-cod{width:70px;}
-  .col-pct{width:80px;}
   .col-status{width:160px;}
   .del-col{width:32px; text-align:center;}
   .del-btn{
@@ -915,7 +914,7 @@
   <section>
     <p class="section-label">Atividades executadas <span class="count-badge" id="badgeAtiv">0</span></p>
     <table id="tblAtiv">
-      <thead><tr><th class="col-cod">Código</th><th>Descrição</th><th class="col-pct">% Concl.</th><th class="col-status">Status</th><th class="del-col"></th></tr></thead>
+      <thead><tr><th class="col-cod">Código</th><th>Descrição</th><th class="col-status">Status</th><th class="del-col"></th></tr></thead>
       <tbody id="bodyAtiv"></tbody>
     </table>
     <button class="add-row" onclick="addAtividade()">+ atividade</button>
@@ -1144,13 +1143,12 @@ function atualizarStatusGeral(){
 function tagClasse(status){
   return {'Não iniciada':'tag-nao','Em andamento':'tag-and','Concluída':'tag-conc','Paralisada':'tag-par'}[status] || 'tag-nao';
 }
-function addAtividade(cod='', desc='', pct='', status='Não iniciada'){
+function addAtividade(cod='', desc='', status='Não iniciada'){
   const tbody = document.getElementById('bodyAtiv');
   const tr = document.createElement('tr');
   tr.innerHTML = `
     <td><input type="text" value="${cod}" placeholder="N°"></td>
     <td><input type="text" value="${desc}" placeholder="Descrição da atividade"></td>
-    <td><input type="number" min="0" max="100" value="${pct}" placeholder="%"></td>
     <td><select class="status-ativ">
       <option ${status==='Não iniciada'?'selected':''}>Não iniciada</option>
       <option ${status==='Em andamento'?'selected':''}>Em andamento</option>
@@ -1303,7 +1301,7 @@ function coletarDados(){
   });
   document.querySelectorAll('#bodyAtiv tr').forEach(tr=>{
     const inputs = tr.querySelectorAll('input');
-    dados.atividades.push({codigo:inputs[0].value, descricao:inputs[1].value, percentual:inputs[2].value, status:tr.querySelector('select').value});
+    dados.atividades.push({codigo:inputs[0].value, descricao:inputs[1].value, status:tr.querySelector('select').value});
   });
   document.querySelectorAll('#listaComentarios .entry').forEach(e=>{
     const inputs = e.querySelectorAll('input');
@@ -1840,7 +1838,7 @@ function aplicarDados(dados){
   });
   // Atividades
   document.getElementById('bodyAtiv').innerHTML = '';
-  (dados.atividades||[]).forEach(a=>addAtividade(a.codigo, a.descricao, a.percentual, a.status));
+  (dados.atividades||[]).forEach(a=>addAtividade(a.codigo, a.descricao, a.status));
   if(!dados.atividades || dados.atividades.length===0) addAtividade();
   // Comentários
   document.getElementById('listaComentarios').innerHTML = '';
@@ -2027,4 +2025,3 @@ initFirebase();
 
 </body>
 </html>
-
