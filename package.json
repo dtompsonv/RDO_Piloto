@@ -1,0 +1,1 @@
+{"name":"rdo-minimo","private":true,"scripts":{"test":"node tests/runner.cjs","test:serve":"node tests/server.cjs"},"devDependencies":{"playwright":"^1.51.0"}}
