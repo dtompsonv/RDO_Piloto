@@ -58,3 +58,27 @@ npm run test:serve
 ```
 
 Abra `http://127.0.0.1:4173/test`. O resultado aparece no topo. Esse servidor injeta exclusivamente dados simulados e nunca conecta o aplicativo ao Firebase real. Não use esse endereço para trabalho diário.
+
+## Publicar em rdo-piloto.web.app
+
+O endereço de destino escolhido é `https://rdo-piloto.web.app`, pelo Firebase Hosting do projeto `rdo-piloto`. Não é preciso comprar domínio nem alterar o DNS. O endereço só estará ativo após uma publicação bem-sucedida; a configuração no repositório não publica o site automaticamente.
+
+Conclua primeiro os passos de Authentication, Storage, permissões e regras descritos acima. Em Authentication → Settings → Authorized domains, confirme que `rdo-piloto.web.app` está autorizado. Não altere `authDomain` da configuração existente apenas para trocar o endereço do site.
+
+Na pasta do projeto, com Node.js instalado:
+
+```sh
+npm install
+npx firebase login
+npx firebase hosting:sites:list --project rdo-piloto
+npm run deploy:hosting
+```
+
+Use a conta Google que administra o projeto `rdo-piloto` e confirme que o site `rdo-piloto` pertence a esse projeto. Se o comando listar erro de acesso ou o site não existir, regularize isso no Console antes de publicar. Não crie outro projeto com o mesmo nome para contornar um erro de permissão.
+
+O comando de publicação envia somente o Hosting. Ele não publica regras, não altera usuários e não migra dados. O `predeploy` prepara `public/` com uma lista explícita de arquivos: `index.html` e `app.js`. Scripts de teste, regras, documentação, arquivos locais e dependências ficam fora da publicação. Arquivos inesperados em `public/` interrompem a preparação para evitar envio acidental.
+
+Após a CLI confirmar a publicação, abra `https://rdo-piloto.web.app`, valide o login e a reabertura de um RDO, incluindo anexos. Os links de colaboração gerados nesse endereço passam a usar o novo domínio. Links antigos do GitHub Pages continuam no endereço antigo; redirecionamento não faz parte desta configuração. O domínio `der.com.br` não é utilizado.
+
+Referência: [Firebase Hosting — primeiros passos](https://firebase.google.com/docs/hosting/quickstart).
+
