@@ -1,0 +1,12 @@
+{
+  "hosting": {
+    "site": "rdo-piloto",
+    "public": "public",
+    "predeploy": ["node scripts/prepare-hosting.cjs"],
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "headers": [{"source": "**", "headers": [{"key": "Cache-Control", "value": "no-cache"}]}]
+  },
+  "firestore": {"rules":"firestore.rules","indexes":"firestore.indexes.json"},
+  "storage": {"rules":"storage.rules"},
+  "emulators": {"auth":{"port":9099},"firestore":{"port":8080},"storage":{"port":9199},"ui":{"enabled":false},"singleProjectMode":true}
+}

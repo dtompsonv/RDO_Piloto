@@ -6,6 +6,8 @@
 <title>Relatório Diário de Obra (RDO)</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
 <style>
   :root{
     --paper:#f7f6f2;
@@ -660,9 +662,13 @@
     section{break-inside:avoid;}
     input, textarea, select{border-color:#999 !important;}
   }
+[hidden]{display:none !important;}
+@media print{#authBar,#saveNotice,.rdo-sidebar{display:none !important;}}
 </style>
 </head>
 <body>
+<div class="collab-bar" id="authBar"><span id="authStatus" role="status">Entre para acessar as obras.</span><button class="btn" id="loginButton" onclick="entrar()">Entrar com Google</button><button class="btn" id="logoutButton" hidden onclick="sair()">Sair</button></div>
+<div class="collab-bar" id="saveNotice" hidden role="alert"><span id="saveNoticeText"></span><button class="btn" onclick="recarregarRemoto()">Carregar versão salva</button><button class="btn" onclick="exportarJSON()">Baixar minha edição</button></div>
 
 <!-- Página principal - lista de obras -->
 <div class="pagina-obras visivel" id="paginaObras">
@@ -733,7 +739,7 @@
       <strong>Passos rápidos:</strong>
       <ol style="margin:6px 0 0 18px; font-size:12px;">
         <li>Crie um projeto no Firebase Console</li>
-        <li>Ative o <strong>Firestore Database</strong> (modo de teste)</li>
+        <li>Ative o <strong>Firestore Database</strong>, Authentication (Google) e Storage; publique as regras conforme o README</li>
         <li>Vá em Configurações do projeto → Seus apps → Adicionar app (Web)</li>
         <li>Copie o objeto <code>firebaseConfig</code> e cole abaixo</li>
       </ol>
@@ -1035,7 +1041,7 @@ function buildGroup(gridId, group, list){
   list.forEach(nome=>{
     const div = document.createElement('div');
     div.className = 'card-item';
-    div.innerHTML = `<div class="card-label">${nome}</div><input type="number" min="0" value="0" class="card-qty" data-group="${group}" oninput="calcularQuantitativos()">`;
+    div.innerHTML = `<div class="card-label">${escapeHTML(nome)}</div><input type="number" min="0" value="0" class="card-qty" data-group="${group}" oninput="calcularQuantitativos()">`;
     grid.appendChild(div);
   });
 }
@@ -1048,7 +1054,7 @@ function addCustomItem(group){
   const div = document.createElement('div');
   div.className = 'card-item custom';
   div.innerHTML = `<button class="del-btn card-del" onclick="this.closest('.card-item').remove(); calcularQuantitativos();">✕</button>
-    <div class="card-label" contenteditable="true">${nome}</div>
+    <div class="card-label" contenteditable="true">${escapeHTML(nome)}</div>
     <input type="number" min="0" value="0" class="card-qty" data-group="${group}" oninput="calcularQuantitativos()">`;
   grid.appendChild(div);
   calcularQuantitativos();
@@ -1126,7 +1132,7 @@ function calcularDatas(){
   }
   registrarModificacao();
 }
-['dataRelatorio','dataInicio','dataFim','prazoContratual'].forEach(id=>{
+['dataInicio','dataFim','prazoContratual'].forEach(id=>{
   document.getElementById(id).addEventListener('input', calcularDatas);
 });
 
@@ -1148,8 +1154,8 @@ function addAtividade(cod='', desc='', status='Não iniciada'){
   const tbody = document.getElementById('bodyAtiv');
   const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td><input type="text" value="${cod}" placeholder="N°"></td>
-    <td><input type="text" value="${desc}" placeholder="Descrição da atividade"></td>
+    <td><input type="text" value="" placeholder="N°"></td>
+    <td><input type="text" value="" placeholder="Descrição da atividade"></td>
     <td><select class="status-ativ">
       <option ${status==='Não iniciada'?'selected':''}>Não iniciada</option>
       <option ${status==='Em andamento'?'selected':''}>Em andamento</option>
@@ -1158,6 +1164,8 @@ function addAtividade(cod='', desc='', status='Não iniciada'){
     </select></td>
     <td class="del-col"><button class="del-btn" onclick="this.closest('tr').remove(); atualizarBadges();">✕</button></td>
   `;
+  tr.querySelectorAll('input')[0].value = cod;
+  tr.querySelectorAll('input')[1].value = desc;
   tbody.appendChild(tr);
   atualizarBadges();
 }
@@ -1168,31 +1176,37 @@ function agoraLocal(){
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
   return d.toISOString().slice(0,16);
 }
-function addComentario(autor='', texto=''){
+function addComentario(autor='', texto='', data=agoraLocal()){
   const div = document.createElement('div');
   div.className = 'entry';
   div.innerHTML = `
     <div class="entry-head">
-      <input type="text" value="${autor}" placeholder="Autor">
-      <input type="datetime-local" value="${agoraLocal()}">
+      <input type="text" value="" placeholder="Autor">
+      <input type="datetime-local" value="">
       <button class="del-btn" onclick="this.closest('.entry').remove(); atualizarBadges();">✕</button>
     </div>
-    <div class="entry-body"><textarea placeholder="Descreva o comentário...">${texto}</textarea></div>
+    <div class="entry-body"><textarea placeholder="Descreva o comentário..."></textarea></div>
   `;
+  div.querySelector('input[type=text]').value = autor;
+  div.querySelector('input[type=datetime-local]').value = data;
+  div.querySelector('textarea').value = texto;
   document.getElementById('listaComentarios').appendChild(div);
   atualizarBadges();
 }
-function addOcorrencia(autor='', texto=''){
+function addOcorrencia(autor='', texto='', data=agoraLocal()){
   const div = document.createElement('div');
   div.className = 'entry';
   div.innerHTML = `
     <div class="entry-head">
-      <input type="text" value="${autor}" placeholder="Autor">
-      <input type="datetime-local" value="${agoraLocal()}">
+      <input type="text" value="" placeholder="Autor">
+      <input type="datetime-local" value="">
       <button class="del-btn" onclick="this.closest('.entry').remove(); atualizarBadges();">✕</button>
     </div>
-    <div class="entry-body"><textarea placeholder="Descreva a ocorrência...">${texto}</textarea></div>
+    <div class="entry-body"><textarea placeholder="Descreva a ocorrência..."></textarea></div>
   `;
+  div.querySelector('input[type=text]').value = autor;
+  div.querySelector('input[type=datetime-local]').value = data;
+  div.querySelector('textarea').value = texto;
   document.getElementById('listaOcorrencias').appendChild(div);
   atualizarBadges();
 }
@@ -1213,42 +1227,14 @@ fotoDrop.addEventListener('dragover', e => { e.preventDefault(); fotoDrop.classL
 fotoDrop.addEventListener('dragleave', () => fotoDrop.classList.remove('drag'));
 fotoDrop.addEventListener('drop', e => { e.preventDefault(); fotoDrop.classList.remove('drag'); handleFotos(e.dataTransfer.files); });
 
-function handleFotos(files){
-  [...files].forEach(file=>{
-    if(!file.type.startsWith('image/')) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const div = document.createElement('div');
-      div.className = 'foto-item';
-      div.innerHTML = `
-        <img src="${ev.target.result}">
-        <input type="text" placeholder="Legenda">
-        <button class="del-btn" onclick="this.closest('.foto-item').remove(); atualizarFotoBadge();">✕</button>
-      `;
-      fotoGrid.appendChild(div);
-      atualizarFotoBadge();
-    };
-    reader.readAsDataURL(file);
-  });
-}
+/* handleFotos implementada em app.js */
 function atualizarFotoBadge(){
   document.getElementById('badgeFotos').textContent = document.querySelectorAll('.foto-item').length;
   registrarModificacao();
 }
 
 // ---------- Assinaturas ----------
-function carregarAssinatura(input, imgId){
-  const file = input.files[0];
-  if(!file || !file.type.startsWith('image/')) return;
-  const reader = new FileReader();
-  reader.onload = ev=>{
-    const img = document.getElementById(imgId);
-    img.src = ev.target.result;
-    img.style.display = 'block';
-    registrarModificacao();
-  };
-  reader.readAsDataURL(file);
-}
+/* carregarAssinatura implementada em app.js */
 
 function atualizarStatusAssin(qual){
   const sel = document.querySelector(`[data-assin="${qual}"]`);
@@ -1270,27 +1256,15 @@ document.getElementById('criadoPor').addEventListener('input', ()=>{
   document.getElementById('modificadoPor').textContent = document.getElementById('criadoPor').value || '—';
 });
 document.addEventListener('input', e=>{
-  if(e.target.closest('.sheet')) registrarModificacao();
+  if(e.target.closest('.sheet') && e.target.id !== 'dataRelatorio') registrarModificacao();
 });
 
 // ---------- Ações gerais ----------
-function limparTudo(){
-  if(!confirm('Limpar todos os dados preenchidos neste formulário?')) return;
-  document.querySelectorAll('input[type=text], input[type=date], input[type=number], input[type=email], input[type=datetime-local], textarea').forEach(i=>i.value='');
-  document.querySelectorAll('select').forEach(s=>s.selectedIndex=0);
-  document.querySelectorAll('.card-qty').forEach(i=>i.value=0);
-  document.querySelectorAll('.card-item.custom').forEach(el=>el.remove());
-  document.getElementById('bodyAtiv').innerHTML='';
-  document.getElementById('listaComentarios').innerHTML='';
-  document.getElementById('listaOcorrencias').innerHTML='';
-  fotoGrid.innerHTML='';
-  document.getElementById('periodoTxt').textContent='Período do contrato: —';
-  calcularQuantitativos(); atualizarBadges(); atualizarFotoBadge(); calcularDatas();
-}
+/* limparTudo implementada em app.js */
 
 function coletarDados(){
-  const dados = { campos:{}, maoObra:{}, equipamentos:{}, atividades:[], comentarios:[], ocorrencias:[], clima:{}, assinaturas:{} };
-  document.querySelectorAll('.sheet input[id], .sheet textarea[id]').forEach(el=>{ dados.campos[el.id] = el.value; });
+  const dados = { schemaVersion:2, midia:coletarMidia(), campos:{}, maoObra:{}, equipamentos:{}, atividades:[], comentarios:[], ocorrencias:[], clima:{}, assinaturas:{} };
+  document.querySelectorAll('.sheet input[id], .sheet textarea[id]').forEach(el=>{ if(el.type!=='file') dados.campos[el.id] = el.value; });
   document.querySelectorAll('[data-clima]').forEach(el=>{ dados.clima[el.dataset.clima] = el.value; });
   document.querySelectorAll('.card-item').forEach(card=>{
     const label = card.querySelector('.card-label').textContent.trim();
@@ -1327,25 +1301,7 @@ function coletarDados(){
   return dados;
 }
 
-function salvarRascunho(){
-  // Se estiver conectado ao Firebase, salva no banco
-  if(db && docId){
-    salvarNoFirebase().then(()=>{
-      alert('RDO salvo com sucesso!');
-    });
-    return;
-  }
-  // Fallback: baixar JSON local
-  const dados = coletarDados();
-  const blob = new Blob([JSON.stringify(dados, null, 2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  const data = document.getElementById('dataRelatorio').value || 'sem-data';
-  a.href = url;
-  a.download = `RDO-${data}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+/* salvarRascunho implementada em app.js */
 
 // ============================================================
 // CALENDÁRIO LATERAL
@@ -1398,12 +1354,7 @@ function renderCalendario(){
     if(calDiasComRDO.has(iso)) div.classList.add('has-rdo');
     if(iso > hojeISO) div.classList.add('futuro');
 
-    div.onclick = ()=>{
-      document.getElementById('dataRelatorio').value = iso;
-      document.getElementById('calDataSelecionada').textContent = formatBR(iso);
-      calcularDatas();
-      renderCalendario();
-    };
+    div.onclick = ()=>abrirDia(iso);
 
     grid.appendChild(div);
   }
@@ -1427,17 +1378,20 @@ function carregarDiasComRDO(){
 }
 
 // ---------- Logo do cabeçalho ----------
-document.getElementById('logoInput').addEventListener('change', e=>{
+document.getElementById('logoInput').addEventListener('change', async e=>{
   const file = e.target.files[0];
-  if(!file || !file.type.startsWith('image/')) return;
-  const reader = new FileReader();
-  reader.onload = ev=>{
+  if(!file) return;
+  const id = docId;
+  try {
+    const src = await readImage(file);
+    if(id!==docId) return;
     const img = document.getElementById('logoImg');
-    img.src = ev.target.result;
+    img.src = src;
     img.style.display = 'block';
     document.getElementById('logoPlaceholder').style.display = 'none';
-  };
-  reader.readAsDataURL(file);
+    registrarModificacao();
+  } catch(e){ notice(e.message); }
+  finally { document.getElementById('logoInput').value=''; }
 });
 
 // ============================================================
@@ -1481,6 +1435,9 @@ async function salvarObra(){
   try{
     const dadosObra = {
       obra: obra,
+      membros: [myUserId],
+      editores: [myUserId],
+      proprietario: myUserId,
       local: document.getElementById('novoLocal').value.trim(),
       contratada: document.getElementById('novaContratada').value.trim(),
       responsavel: document.getElementById('novoResponsavel').value.trim(),
@@ -1508,7 +1465,7 @@ async function salvarObra(){
 function carregarObras(){
   if(!db) return;
   if(unsubObras) unsubObras();
-  unsubObras = db.collection('obras').orderBy('criadoEm', 'desc').onSnapshot(snap=>{
+  unsubObras = db.collection('obras').where('membros', 'array-contains', myUserId).onSnapshot(snap=>{
     const grid = document.getElementById('obrasGrid');
     const vazio = document.getElementById('obrasVazio');
     grid.innerHTML = '';
@@ -1519,22 +1476,24 @@ function carregarObras(){
       const card = document.createElement('div');
       card.className = 'obra-card';
       card.innerHTML = `
-        <h3>${o.obra || 'Sem nome'}</h3>
+        <h3>${escapeHTML(o.obra || 'Sem nome')}</h3>
         <div class="meta">
-          ${o.local ? `<div><b>Local:</b> ${o.local}</div>` : ''}
-          ${o.contratada ? `<div><b>Contratada:</b> ${o.contratada}</div>` : ''}
-          ${o.contratoObra ? `<div><b>Contrato:</b> ${o.contratoObra}</div>` : ''}
-          ${o.dataInicio ? `<div><b>Início:</b> ${formatBR(o.dataInicio)}</div>` : ''}
-          ${o.dataFim ? `<div><b>Fim:</b> ${formatBR(o.dataFim)}</div>` : ''}
+          ${o.local ? `<div><b>Local:</b> ${escapeHTML(o.local)}</div>` : ''}
+          ${o.contratada ? `<div><b>Contratada:</b> ${escapeHTML(o.contratada)}</div>` : ''}
+          ${o.contratoObra ? `<div><b>Contrato:</b> ${escapeHTML(o.contratoObra)}</div>` : ''}
+          ${o.dataInicio ? `<div><b>Início:</b> ${escapeHTML(formatBR(o.dataInicio))}</div>` : ''}
+          ${o.dataFim ? `<div><b>Fim:</b> ${escapeHTML(formatBR(o.dataFim))}</div>` : ''}
         </div>
         <div class="rodape">
-          <span>${o.responsavel || '—'}</span>
+          <span>${escapeHTML(o.responsavel || '—')}</span>
           <div>
-            <button class="btn btn-primary" onclick="abrirRDOObra('${doc.id}')">Abrir RDO</button>
-            <button class="btn-excluir" onclick="excluirObra('${doc.id}')">Excluir</button>
+            <button class="btn btn-primary abrir-rdo">Abrir RDO</button>
+            <button class="btn-excluir">Excluir</button>
           </div>
         </div>
       `;
+      card.querySelector('.abrir-rdo').onclick = ()=>abrirRDOObra(doc.id);
+      card.querySelector('.btn-excluir').onclick = ()=>excluirObra(doc.id);
       grid.appendChild(card);
     });
     if(count === 0){
@@ -1542,40 +1501,11 @@ function carregarObras(){
     }
   }, err=>{
     console.error('Erro ao carregar obras:', err);
+    document.getElementById('authStatus').textContent = 'Não foi possível carregar obras. Verifique as permissões e a conexão.';
   });
 }
 
-function abrirRDOObra(obraId){
-  obraAtualId = obraId;
-  // Buscar dados da obra e preencher campos fixos
-  db.collection('obras').doc(obraId).get().then(doc=>{
-    if(!doc.exists) return;
-    const o = doc.data();
-    document.getElementById('obra').value = o.obra || '';
-    document.getElementById('local').value = o.local || '';
-    document.getElementById('contratada').value = o.contratada || '';
-    document.getElementById('responsavel').value = o.responsavel || '';
-    document.getElementById('contratoObra').value = o.contratoObra || '';
-    document.getElementById('contratoSup').value = o.contratoSup || '';
-    document.getElementById('dataInicio').value = o.dataInicio || '';
-    document.getElementById('dataFim').value = o.dataFim || '';
-    document.getElementById('prazoContratual').value = o.prazoContratual || '';
-    calcularDatas();
-    // Mostrar formulário RDO
-    document.getElementById('paginaObras').classList.remove('visivel');
-    document.querySelector('.sheet').classList.add('visivel');
-    document.querySelector('.rdo-layout').classList.add('visivel');
-    document.getElementById('collabBar').classList.remove('hidden');
-    document.getElementById('historyPanel').classList.remove('hidden');
-    // Criar novo documento RDO para esta obra
-    criarNovoDoc(obraId);
-    // Carregar dias com RDO no calendário
-    carregarDiasComRDO();
-  }).catch(e=>{
-    console.error('Erro ao buscar obra:', e);
-    alert('Erro ao abrir obra.');
-  });
-}
+/* abrirRDOObra implementada em app.js */
 
 async function excluirObra(obraId){
   if(!confirm('Excluir esta obra? Todos os RDOs associados também serão excluídos.')) return;
@@ -1596,23 +1526,7 @@ async function excluirObra(obraId){
   }
 }
 
-function voltarParaObras(){
-  if(unsubDoc){ unsubDoc(); unsubDoc = null; }
-  if(unsubHistory){ unsubHistory(); unsubHistory = null; }
-  if(unsubPresence){ unsubPresence(); unsubPresence = null; }
-  docId = null;
-  obraAtualId = null;
-  document.querySelector('.sheet').classList.remove('visivel');
-  document.querySelector('.rdo-layout').classList.remove('visivel');
-  document.getElementById('collabBar').classList.add('hidden');
-  document.getElementById('historyPanel').classList.add('hidden');
-  document.getElementById('paginaObras').classList.add('visivel');
-  // Limpar URL
-  const url = new URL(window.location.href);
-  url.searchParams.delete('doc');
-  url.searchParams.delete('obra');
-  window.history.replaceState({}, '', url);
-}
+/* voltarParaObras implementada em app.js */
 
 // ============================================================
 // FIREBASE - COLABORAÇÃO, AUTO-SAVE E HISTÓRICO
@@ -1680,48 +1594,12 @@ function salvarConfigFirebase(){
   localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
   if(nome) localStorage.setItem(USER_KEY, nome);
   document.getElementById('configPanel').classList.add('hidden');
-  initFirebase();
+  window.location.reload();
 }
 
-function limparConfigFirebase(){
-  if(!confirm('Remover a configuração do Firebase deste navegador?')) return;
-  localStorage.removeItem(STORAGE_KEY);
-  document.getElementById('firebaseConfigInput').value = '';
-  document.getElementById('userNameInput').value = '';
-  document.getElementById('configPanel').classList.remove('hidden');
-  document.getElementById('configStatus').textContent = 'Não configurado';
-  document.getElementById('configStatus').className = 'config-status';
-  document.getElementById('collabBar').classList.add('hidden');
-  document.getElementById('historyPanel').classList.add('hidden');
-  if(unsubDoc){ unsubDoc(); unsubDoc = null; }
-  if(unsubHistory){ unsubHistory(); unsubHistory = null; }
-  if(unsubPresence){ unsubPresence(); unsubPresence = null; }
-  db = null; app = null;
-}
+/* limparConfigFirebase implementada em app.js */
 
-function initFirebase(){
-  const config = getEffectiveConfig();
-  if(!config) return;
-  try{
-    app = firebase.initializeApp(config);
-    db = firebase.firestore(app);
-    document.getElementById('configPanel').classList.add('hidden');
-    document.getElementById('configStatus').textContent = 'Conectado';
-    document.getElementById('configStatus').className = 'config-status ok';
-    myUserName = getUserName() || 'Anônimo';
-    myUserId = localStorage.getItem('rdo_user_id') || 'u_' + Math.random().toString(36).slice(2,10);
-    localStorage.setItem('rdo_user_id', myUserId);
-    setCollabStatus('online', 'Conectado');
-    // Carregar lista de obras na página principal
-    carregarObras();
-    // Verificar se veio com obra na URL
-    setupDocFromURL();
-  }catch(e){
-    console.error('Erro ao inicializar Firebase:', e);
-    document.getElementById('configStatus').textContent = 'Erro de conexão';
-    document.getElementById('configStatus').className = 'config-status err';
-  }
-}
+/* initFirebase implementada em app.js */
 
 function setCollabStatus(state, txt){
   const dot = document.getElementById('collabDot');
@@ -1729,73 +1607,9 @@ function setCollabStatus(state, txt){
   document.getElementById('collabStatus').textContent = txt;
 }
 
-function setupDocFromURL(){
-  const params = new URLSearchParams(window.location.search);
-  const urlDoc = params.get('doc');
-  const urlObra = params.get('obra');
-  if(urlDoc){
-    docId = urlDoc;
-    // Mostrar formulário RDO
-    document.getElementById('paginaObras').classList.remove('visivel');
-    document.querySelector('.sheet').classList.add('visivel');
-    document.getElementById('collabBar').classList.remove('hidden');
-    document.getElementById('historyPanel').classList.remove('hidden');
-    subscribeDoc();
-    updateLinkField();
-  } else if(urlObra){
-    abrirRDOObra(urlObra);
-  }
-  // Se não veio nada na URL, fica na página de obras
-}
+/* setupDocFromURL implementada em app.js */
 
-async function criarNovoDoc(obraId){
-  try{
-    const ref = await db.collection('rdos').add({
-      dados: coletarDados(),
-      obraId: obraId || null,
-      criadoPor: myUserName,
-      criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
-      modificadoPor: myUserName,
-      modificadoEm: firebase.firestore.FieldValue.serverTimestamp(),
-      versao: 1
-    });
-    docId = ref.id;
-    const url = new URL(window.location.href);
-    url.searchParams.set('doc', docId);
-    if(obraId) url.searchParams.set('obra', obraId);
-    window.history.replaceState({}, '', url);
-    updateLinkField();
-    registrarHistorico('Documento criado');
-    subscribeDoc();
-  }catch(e){
-    console.error('Erro ao criar documento:', e);
-    // Identificar o motivo real do erro
-    let motivo = 'Erro ao criar documento';
-    if(e && e.code){
-      switch(e.code){
-        case 'permission-denied':
-          motivo = 'Permissão negada — verifique as regras do Firestore no Firebase Console';
-          break;
-        case 'unavailable':
-          motivo = 'Firebase indisponível — verifique sua conexão com a internet';
-          break;
-        case 'not-found':
-          motivo = 'Firestore não encontrado — verifique se o Firestore Database está ativado no Firebase Console';
-          break;
-        case 'failed-precondition':
-          motivo = 'Firestore não ativado — ative o Firestore Database no Firebase Console';
-          break;
-        default:
-          motivo = 'Erro ao criar documento: ' + (e.message || e.code || 'erro desconhecido');
-      }
-    } else if(e && e.message){
-      motivo = 'Erro ao criar documento: ' + e.message;
-    }
-    setCollabStatus('offline', motivo);
-    // Fallback local: permite preencher o RDO mesmo sem Firebase
-    alert(motivo + '\n\nO RDO será aberto em modo local. Use o botão "💾 Salvar" para baixar o arquivo JSON.');
-  }
-}
+/* criarNovoDoc implementada em app.js */
 
 function updateLinkField(){
   const url = new URL(window.location.href);
@@ -1810,35 +1624,14 @@ function copiarLink(){
   alert('Link copiado! Compartilhe com quem deseja colaborar.');
 }
 
-function subscribeDoc(){
-  if(!db || !docId) return;
-  if(unsubDoc) unsubDoc();
-  unsubDoc = db.collection('rdos').doc(docId).onSnapshot(snap=>{
-    if(!snap.exists) return;
-    const data = snap.data();
-    const json = JSON.stringify(data.dados);
-    if(json !== lastSavedData){
-      isApplyingRemote = true;
-      aplicarDados(data.dados);
-      lastSavedData = json;
-      isApplyingRemote = false;
-      document.getElementById('modificadoPor').textContent = data.modificadoPor || '—';
-      document.getElementById('modificadoEm').textContent = data.modificadoEm ? new Date(data.modificadoEm.toMillis()).toLocaleString('pt-BR') : '—';
-    }
-  }, err=>{
-    console.error('Erro no snapshot:', err);
-    setCollabStatus('offline', 'Erro de conexão');
-  });
-  subscribeHistory();
-  subscribePresence();
-}
+/* subscribeDoc implementada em app.js */
 
 function aplicarDados(dados){
   if(!dados) return;
   if(dados.campos){
     Object.entries(dados.campos).forEach(([id, val])=>{
       const el = document.getElementById(id);
-      if(el) el.value = val || '';
+      if(el && el.closest(".sheet") && !["file","button"].includes(el.type)) el.value = val || '';
     });
   }
   if(dados.clima){
@@ -1848,10 +1641,10 @@ function aplicarDados(dados){
     });
   }
   // Mão de obra e equipamentos
-  document.querySelectorAll('.card-item.custom').forEach(el=>el.remove());
   const grids = {direta:'gridDireta', construtora:'gridConstrutora', indireta:'gridIndireta', equip:'gridEquip'};
   Object.entries(grids).forEach(([group, gridId])=>{
     const grid = document.getElementById(gridId);
+    grid.replaceChildren();
     const items = group==='equip' ? (dados.equipamentos?.lista||[]) : (dados.maoObra?.[group]||[]);
     items.forEach(item=>{
       const nome = item.funcao || item.item;
@@ -1859,8 +1652,8 @@ function aplicarDados(dados){
       const div = document.createElement('div');
       div.className = 'card-item custom';
       div.innerHTML = `<button class="del-btn card-del" onclick="this.closest('.card-item').remove(); calcularQuantitativos();">✕</button>
-        <div class="card-label" contenteditable="true">${nome}</div>
-        <input type="number" min="0" value="${qtd}" class="card-qty" data-group="${group}" oninput="calcularQuantitativos()">`;
+        <div class="card-label" contenteditable="true">${escapeHTML(nome)}</div>
+        <input type="number" min="0" value="${escapeHTML(qtd)}" class="card-qty" data-group="${group}" oninput="calcularQuantitativos()">`;
       grid.appendChild(div);
     });
   });
@@ -1870,10 +1663,10 @@ function aplicarDados(dados){
   if(!dados.atividades || dados.atividades.length===0) addAtividade();
   // Comentários
   document.getElementById('listaComentarios').innerHTML = '';
-  (dados.comentarios||[]).forEach(c=>addComentario(c.autor, c.texto));
+  (dados.comentarios||[]).forEach(c=>addComentario(c.autor, c.texto, c.data));
   // Ocorrências
   document.getElementById('listaOcorrencias').innerHTML = '';
-  (dados.ocorrencias||[]).forEach(o=>addOcorrencia(o.autor, o.texto));
+  (dados.ocorrencias||[]).forEach(o=>addOcorrencia(o.autor, o.texto, o.data));
   // Assinaturas
   if(dados.assinaturas){
     ['exec','sup','fisc'].forEach(q=>{
@@ -1890,61 +1683,21 @@ function aplicarDados(dados){
       atualizarStatusAssin(q);
     });
   }
+  aplicarMidia(dados.midia);
   calcularQuantitativos();
   calcularDatas();
   atualizarBadges();
   atualizarFotoBadge();
+  renderCalendario();
 }
 
 // ---------- Auto-save com debounce ----------
-function agendarSave(){
-  if(!db || !docId) return;
-  clearTimeout(saveTimer);
-  setCollabStatus('saving', 'Salvando...');
-  saveTimer = setTimeout(()=>{
-    salvarNoFirebase();
-  }, 800);
-}
+/* agendarSave implementada em app.js */
 
-async function salvarNoFirebase(){
-  if(!db || !docId) return;
-  const dados = coletarDados();
-  const json = JSON.stringify(dados);
-  if(json === lastSavedData){
-    setCollabStatus('online', 'Conectado');
-    return;
-  }
-  try{
-    const ref = db.collection('rdos').doc(docId);
-    const snap = await ref.get();
-    const versao = (snap.exists && snap.data().versao) ? snap.data().versao + 1 : 1;
-    await ref.update({
-      dados: dados,
-      modificadoPor: myUserName,
-      modificadoEm: firebase.firestore.FieldValue.serverTimestamp(),
-      versao: versao
-    });
-    lastSavedData = json;
-    setCollabStatus('online', 'Salvo');
-    setTimeout(()=>setCollabStatus('online', 'Conectado'), 2000);
-  }catch(e){
-    console.error('Erro ao salvar:', e);
-    setCollabStatus('offline', 'Erro ao salvar');
-  }
-}
+/* salvarNoFirebase implementada em app.js */
 
 // ---------- Histórico ----------
-async function registrarHistorico(descricao){
-  if(!db || !docId) return;
-  try{
-    await db.collection('rdos').doc(docId).collection('historico').add({
-      autor: myUserName,
-      data: firebase.firestore.FieldValue.serverTimestamp(),
-      descricao: descricao,
-      dados: coletarDados()
-    });
-  }catch(e){ console.error('Erro ao registrar histórico:', e); }
-}
+/* registrarHistorico implementada em app.js */
 
 function subscribeHistory(){
   if(!db || !docId) return;
@@ -1961,12 +1714,13 @@ function subscribeHistory(){
         const quando = h.data ? new Date(h.data.toMillis()).toLocaleString('pt-BR') : '—';
         div.innerHTML = `
           <div>
-            <div class="who">${h.autor || 'Anônimo'}</div>
+            <div class="who">${escapeHTML(h.autor || 'Anônimo')}</div>
             <div class="when">${quando}</div>
           </div>
-          <div class="what">${h.descricao || 'Edição'}</div>
-          <button class="btn btn-ghost" onclick="restaurarVersao('${doc.id}')">Restaurar</button>
+          <div class="what">${escapeHTML(h.descricao || 'Edição')}</div>
+          <button class="btn btn-ghost">Restaurar</button>
         `;
+        div.querySelector('button').onclick = ()=>restaurarVersao(doc.id);
         body.appendChild(div);
       });
     });
@@ -1979,51 +1733,10 @@ function toggleHistory(){
   toggle.textContent = body.classList.contains('hidden') ? '▼' : '▲';
 }
 
-async function restaurarVersao(histId){
-  if(!confirm('Restaurar esta versão? Os dados atuais serão substituídos.')) return;
-  try{
-    const snap = await db.collection('rdos').doc(docId).collection('historico').doc(histId).get();
-    if(!snap.exists) return;
-    const h = snap.data();
-    if(h.dados){
-      isApplyingRemote = true;
-      aplicarDados(h.dados);
-      isApplyingRemote = false;
-      await salvarNoFirebase();
-      registrarHistorico('Versão restaurada');
-      alert('Versão restaurada!');
-    }
-  }catch(e){ console.error('Erro ao restaurar:', e); }
-}
+/* restaurarVersao implementada em app.js */
 
 // ---------- Presença (usuários online) ----------
-function subscribePresence(){
-  if(!db || !docId) return;
-  if(unsubPresence) unsubPresence();
-  const presenceRef = db.collection('rdos').doc(docId).collection('presenca').doc(myUserId);
-  presenceRef.set({
-    nome: myUserName,
-    online: true,
-    ultimaAtividade: firebase.firestore.FieldValue.serverTimestamp()
-  });
-  window.addEventListener('beforeunload', ()=>{
-    presenceRef.update({online: false});
-  });
-  unsubPresence = db.collection('rdos').doc(docId).collection('presenca')
-    .onSnapshot(snap=>{
-      const usersDiv = document.getElementById('collabUsers');
-      usersDiv.innerHTML = '';
-      snap.forEach(doc=>{
-        const p = doc.data();
-        if(p.online){
-          const chip = document.createElement('span');
-          chip.className = 'collab-user-chip' + (doc.id===myUserId ? ' you' : '');
-          chip.textContent = p.nome + (doc.id===myUserId ? ' (você)' : '');
-          usersDiv.appendChild(chip);
-        }
-      });
-    });
-}
+/* subscribePresence implementada em app.js */
 
 // ---------- Interceptar modificações para auto-save ----------
 const originalRegistrarModificacao = registrarModificacao;
@@ -2032,26 +1745,18 @@ registrarModificacao = function(){
   if(!isApplyingRemote) agendarSave();
 };
 
-// ---------- Inicialização ----------
+</script>
+<script src="app.js"></script>
+<script>
 buildGroup('gridDireta','direta',MAO_OBRA_DIRETA);
 buildGroup('gridConstrutora','construtora',MAO_OBRA_CONSTRUTORA);
 buildGroup('gridIndireta','indireta',MAO_OBRA_INDIRETA);
 buildGroup('gridEquip','equip',EQUIPAMENTOS);
-addAtividade();
-calcularQuantitativos();
-calcularDatas();
-atualizarBadges();
-renderCalendario();
-
-// Inicializar automaticamente com a configuração embutida
-// (ou com a configuração salva manualmente, se existir)
-const savedConfig = getConfigFromStorage();
-if(savedConfig){
-  document.getElementById('firebaseConfigInput').value = JSON.stringify(savedConfig);
-  document.getElementById('userNameInput').value = getUserName();
-}
+isApplyingRemote = true;
+addAtividade(); calcularQuantitativos(); calcularDatas(); atualizarBadges(); renderCalendario();
+const dadosIniciais = coletarDados();
+isApplyingRemote = false;
 initFirebase();
 </script>
-
 </body>
 </html>

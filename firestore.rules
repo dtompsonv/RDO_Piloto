@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function obra(id) { return get(/databases/$(database)/documents/obras/$(id)).data; }
+    function member(id) { return signedIn() && request.auth.uid in obra(id).membros; }
+    function editor(id) { return member(id) && request.auth.uid in obra(id).editores; }
+    function report(id) { return get(/databases/$(database)/documents/rdos/$(id)).data; }
+    match /obras/{id} {
+      allow read: if signedIn() && request.auth.uid in resource.data.membros;
+      allow create: if signedIn()
+        && request.resource.data.proprietario == request.auth.uid
+        && request.resource.data.membros == [request.auth.uid]
+        && request.resource.data.editores == [request.auth.uid];
+      allow update, delete: if signedIn() && resource.data.proprietario == request.auth.uid;
+      match /dias/{date} {
+        allow read: if member(id);
+        allow create: if editor(id)
+          && request.resource.data.keys().hasOnly(['rdoId'])
+          && getAfter(/databases/$(database)/documents/rdos/$(request.resource.data.rdoId)).data.obraId == id
+          && getAfter(/databases/$(database)/documents/rdos/$(request.resource.data.rdoId)).data.dados.campos.dataRelatorio == date;
+        allow update, delete: if false;
+      }
+    }
+    match /rdos/{id} {
+      allow read: if member(resource.data.obraId);
+      // Transactions check absence before creating a daily report.
+      allow get: if signedIn() && !exists(/databases/$(database)/documents/rdos/$(id));
+      allow create: if editor(request.resource.data.obraId)
+        && request.resource.data.criadoPorUid == request.auth.uid
+        && request.resource.data.modificadoPorUid == request.auth.uid
+        && request.resource.data.versao == 1
+        && request.resource.data.criadoEm == request.time
+        && request.resource.data.modificadoEm == request.time;
+      allow update: if editor(resource.data.obraId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['dados','dataRelatorio','versao','modificadoPor','modificadoPorUid','modificadoEm'])
+        && request.resource.data.dados.campos.dataRelatorio == resource.data.dados.campos.dataRelatorio
+        && request.resource.data.modificadoPorUid == request.auth.uid
+        && request.resource.data.modificadoEm == request.time
+        && request.resource.data.versao == resource.data.versao + 1;
+      allow delete: if signedIn() && obra(resource.data.obraId).proprietario == request.auth.uid;
+      match /historico/{version} {
+        allow read: if member(report(id).obraId);
+        allow create: if editor(getAfter(/databases/$(database)/documents/rdos/$(id)).data.obraId)
+          && request.resource.data.autorUid == request.auth.uid
+          && request.resource.data.data == request.time
+          && request.resource.data.versao == getAfter(/databases/$(database)/documents/rdos/$(id)).data.versao
+          && request.resource.data.dados == getAfter(/databases/$(database)/documents/rdos/$(id)).data.dados;
+        allow update, delete: if false;
+      }
+      match /presenca/{session} {
+        allow read: if member(report(id).obraId);
+        allow create, update: if member(report(id).obraId)
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.ultimaAtividade == request.time
+          && (!exists(/databases/$(database)/documents/rdos/$(id)/presenca/$(session)) || resource.data.uid == request.auth.uid);
+        allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+      }
+    }
+  }
+}
