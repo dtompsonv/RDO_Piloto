@@ -4,6 +4,13 @@ async function runRegression(){
   function check(value,message){assertions++;if(!value)throw Error(message);}
   const wait=async predicate=>{for(let i=0;i<200;i++){if(predicate())return;await new Promise(r=>setTimeout(r,10));}throw Error('Timeout waiting for initialization');};
   await wait(()=>obras.size===2);
+  abrirModalObra();document.getElementById('novaObra').value='Obra teste CRUD';await salvarObra();
+  const testWork=[...obras.keys()].find(id=>!['obra1','obra2'].includes(id));check(!!testWork,'create work');
+  editarObra(testWork);document.getElementById('novaObra').value='Obra editada';await salvarObra();check(mock.rows.get('obras/'+testWork).obra==='Obra editada','edit persisted');
+  const oldConfirm=window.confirm;window.confirm=()=>false;await excluirObra(testWork);check(!obras.get(testWork).excluida,'cancel deletion');window.confirm=oldConfirm;
+  await excluirObra(testWork);check(mock.rows.get('obras/'+testWork).excluida,'trash persisted');check(!document.getElementById('obrasGrid').textContent.includes('Obra editada'),'deleted work hidden');
+  await restaurarObra(testWork);check(!mock.rows.get('obras/'+testWork).excluida,'restore persisted');
+  mock.rows.delete('obras/'+testWork);await loadCatalog();
   // This fixture reproduces the actual old data shape: no date and repeated quantities.
   const old=clone(blankData);old.campos.obra='Obra A';old.maoObra.direta.push({funcao:old.maoObra.direta[0].funcao,qtd:'7'});
   mock.rows.set('rdos/legacy',{obraId:'obra1',dados:old,versao:1});await loadCatalog();

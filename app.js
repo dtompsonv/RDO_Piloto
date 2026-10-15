@@ -106,13 +106,14 @@ function calDataISO(y,m,d){return `${y}-${String(m+1).padStart(2,'0')}-${String(
 function calMudarMes(delta){const date=new Date(calAno,calMes+delta,1);calAno=date.getFullYear();calMes=date.getMonth();renderCalendario();}
 function renderHome(){
   const grid=document.getElementById('obrasGrid');grid.replaceChildren();
-  for(const [id,o] of obras){const card=document.createElement('div');card.className='obra-card';const h=document.createElement('h3');h.textContent=o.obra||'Sem nome';const p=document.createElement('p');p.textContent=o.local||'';const button=reportButton('Calendário / novo RDO',()=>abrirRDOObra(id));card.append(h,p,button);const saved=[...reports.entries()].filter(([,r])=>r.obraId===id&&validDate(reportDate(r))).sort((a,b)=>reportDate(b[1]).localeCompare(reportDate(a[1])));if(saved.length){card.append(pdfElement('p',saved.length+' RDO(s) salvo(s)'),reportButton('Abrir último RDO · '+formatBR(reportDate(saved[0][1])),()=>abrirRegistro(saved[0][0])));}grid.append(card);}
-  if(!obras.size){const p=document.createElement('p');p.textContent='Nenhuma obra cadastrada. Use Adicionar obra.';grid.append(p);}
-  const old=[...reports.entries()].filter(([,r])=>!validDate(reportDate(r))||!r.obraId||!obras.has(r.obraId));
+  for(const [id,o] of obras){if(o.excluida)continue;const card=document.createElement('div');card.className='obra-card';const h=document.createElement('h3');h.textContent=o.obra||'Sem nome';const p=document.createElement('p');p.textContent=o.local||'';const button=reportButton('Calendário / novo RDO',()=>abrirRDOObra(id));card.append(h,p,button,reportButton('Editar',()=>editarObra(id)),reportButton('Excluir',()=>excluirObra(id)));const saved=[...reports.entries()].filter(([,r])=>r.obraId===id&&validDate(reportDate(r))).sort((a,b)=>reportDate(b[1]).localeCompare(reportDate(a[1])));if(saved.length){card.append(pdfElement('p',saved.length+' RDO(s) salvo(s)'),reportButton('Abrir último RDO · '+formatBR(reportDate(saved[0][1])),()=>abrirRegistro(saved[0][0])));}grid.append(card);}
+  if(![...obras.values()].some(o=>!o.excluida)){const p=document.createElement('p');p.textContent='Nenhuma obra cadastrada. Use Adicionar obra.';grid.append(p);}
+  let trash=document.getElementById('obrasLixeira');if(!trash){trash=document.createElement('details');trash.id='obrasLixeira';grid.after(trash);}trash.replaceChildren(pdfElement('summary','Lixeira de obras'));let trashCount=0;for(const [id,o] of obras)if(o.excluida){trashCount++;const row=pdfElement('p',o.obra||'Sem nome');row.append(reportButton('Restaurar',()=>restaurarObra(id)));trash.append(row);}trash.hidden=!trashCount;
+  const old=[...reports.entries()].filter(([,r])=>!obras.get(r.obraId)?.excluida&&(!validDate(reportDate(r))||!r.obraId||!obras.has(r.obraId))); 
   const list=document.getElementById('legacyList');list.replaceChildren();
   for(const [id,r] of old){const title=r.dados?.campos?.obra||obras.get(r.obraId)?.obra||'Obra não identificada';list.append(reportButton(title+' · '+(validDate(reportDate(r))?formatBR(reportDate(r)):'sem data')+' · registro '+id.slice(-6),()=>abrirRegistro(id)));}
   document.getElementById('legacyPanel').hidden=!old.length;
-  const select=document.getElementById('recoveryObra');select.replaceChildren();const none=new Option('Selecione a obra','');select.add(none);for(const [id,o] of obras)select.add(new Option(o.obra||id,id));
+  const select=document.getElementById('recoveryObra');select.replaceChildren();const none=new Option('Selecione a obra','');select.add(none);for(const [id,o] of obras)if(!o.excluida)select.add(new Option(o.obra||id,id));
 }
 async function loadCatalog(){
   const [works,docs]=await Promise.all([db.collection('obras').get(),db.collection('rdos').get()]);
@@ -149,12 +150,12 @@ async function openForm({id=null,obraId=null,date=null,data=null,version=null,fi
 }
 async function abrirRegistro(id){
   if(navigating)return;navigating=true;
-  try{if(!await beforeNavigation())return;navBusy(true);const snap=await db.collection('rdos').doc(id).get();if(!snap.exists)throw Error('RDO não encontrado.');const r=snap.data();reports.set(id,r);await openForm({id,obraId:obras.has(r.obraId)?r.obraId:null,date:reportDate(r),data:r.dados,version:r.versao??0,fingerprint:stable(r.dados)});}
+  try{if(!await beforeNavigation())return;navBusy(true);const snap=await db.collection('rdos').doc(id).get();if(!snap.exists)throw Error('RDO não encontrado.');const r=snap.data();if(obras.get(r.obraId)?.excluida)throw Error('Esta obra está na lixeira. Restaure-a para abrir seus RDOs.');reports.set(id,r);await openForm({id,obraId:obras.has(r.obraId)?r.obraId:null,date:reportDate(r),data:r.dados,version:r.versao??0,fingerprint:stable(r.dados)});}
   catch(e){notice('Não foi possível abrir o RDO: '+e.message);}finally{navigating=false;navBusy(false);}
 }
 async function abrirRDOObra(id){return abrirDia(todayISO(),id);}
 async function abrirDia(date,obraId=obraAtualId){
-  if(navigating||!validDate(date)||!obraId)return;
+  if(navigating||!validDate(date)||!obraId)return;if(obras.get(obraId)?.excluida){notice('Restaure a obra na lixeira antes de abrir um RDO.');return;}
   if(docId&&(!activeDate||!obraAtualId)){document.getElementById('recoveryDate').value=date;notice('Para recuperar este registro antigo, selecione a obra e clique em Vincular e salvar RDO.');return;}
   const existing=candidates(obraId,date);if(existing.length)return abrirRegistro(existing[0][0]);
   navigating=true;
@@ -192,6 +193,7 @@ async function salvarNoFirebase(){
   saving=(async()=>{
     const ref=db.collection('rdos').doc(id);
     const next=await db.runTransaction(async tx=>{
+      const work=await tx.get(db.collection('obras').doc(workId));if(!work.exists||work.data().excluida)throw Error('A obra foi excluída. Restaure-a antes de salvar.');
       const snap=await tx.get(ref);
       if(wasNew&&snap.exists)throw Error('Outra sessão já criou este dia. Volte à obra e reabra o relatório para revisar. Seu rascunho local foi preservado.');
       if(!wasNew&&!snap.exists)throw Error('Este registro não está mais no servidor. Seu rascunho local foi preservado.');
@@ -213,15 +215,28 @@ async function salvarNoFirebase(){
 }
 async function salvarRascunho(){try{await salvarNoFirebase();notice('RDO salvo. Ele permanece aberto e pode ser reencontrado no calendário e na lista de RDOs salvos.');}catch(e){notice('Não foi possível salvar no servidor. '+e.message);}}
 function limparTudo(){if(!confirm('Limpar o conteúdo deste RDO? A obra e a data serão mantidas.'))return;const data=clone(blankData);for(const key of ['obra','local','contratada','responsavel','contratoObra','contratoSup','dataInicio','dataFim','prazoContratual','dataRelatorio','criadoPor','criadoEm'])data.campos[key]=document.getElementById(key).value;applyData(data);changed();}
-function abrirModalObra(){document.getElementById('modalObra').classList.add('visivel');document.getElementById('novaObra').focus();}
-function fecharModalObra(){document.getElementById('modalObra').classList.remove('visivel');}
+let editingObraId=null,obraSaving=false;
+const obraFields={obra:'novaObra',local:'novoLocal',contratada:'novaContratada',responsavel:'novoResponsavel',contratoObra:'novoContratoObra',contratoSup:'novoContratoSup',dataInicio:'novaDataInicio',dataFim:'novaDataFim',prazoContratual:'novoPrazo'};
+function abrirModalObra(id=null){
+  if(obraSaving)return;editingObraId=id;const data=id?obras.get(id):{};if(id&&(!data||data.excluida))return;
+  for(const [key,input] of Object.entries(obraFields))document.getElementById(input).value=data?.[key]??'';
+  document.querySelector('#modalObra h2').textContent=id?'Editar obra':'Adicionar obra';
+  document.getElementById('modalObra').classList.add('visivel');document.getElementById('novaObra').focus();
+}
+function editarObra(id){abrirModalObra(id);}
+function fecharModalObra(){if(!obraSaving){document.getElementById('modalObra').classList.remove('visivel');editingObraId=null;}}
 function calcularPrazoAuto(){const start=document.getElementById('novaDataInicio').value,end=document.getElementById('novaDataFim').value;if(start&&end)document.getElementById('novoPrazo').value=Math.max(0,diffDias(start,end));}
 async function salvarObra(){
-  const name=document.getElementById('novaObra').value.trim();if(!name){alert('Informe o nome da obra.');return;}
-  const map={obra:'novaObra',local:'novoLocal',contratada:'novaContratada',responsavel:'novoResponsavel',contratoObra:'novoContratoObra',contratoSup:'novoContratoSup',dataInicio:'novaDataInicio',dataFim:'novaDataFim',prazoContratual:'novoPrazo'};
-  const data=Object.fromEntries(Object.entries(map).map(([key,id])=>[key,document.getElementById(id).value.trim()]));
-  try{const ref=await db.collection('obras').add({...data,criadoEm:stamp()});obras.set(ref.id,data);fecharModalObra();for(const id of Object.values(map))document.getElementById(id).value='';renderHome();}catch(e){notice('Não foi possível cadastrar a obra: '+e.message);}
+  if(obraSaving)return;const data=Object.fromEntries(Object.entries(obraFields).map(([key,id])=>[key,document.getElementById(id).value.trim()]));if(!data.obra){alert('Informe o nome da obra.');return;}
+  obraSaving=true;const button=document.querySelector('#modalObra .btn-primary');button.disabled=true;
+  try{if(editingObraId){const id=editingObraId,ref=db.collection('obras').doc(id);await db.runTransaction(async tx=>{const current=await tx.get(ref);if(!current.exists||current.data().excluida)throw Error('Obra indisponível. Atualize a página.');tx.update(ref,{...data,modificadoEm:stamp()});});obras.set(id,{...obras.get(id),...data});}else{const ref=await db.collection('obras').add({...data,criadoEm:stamp()});obras.set(ref.id,data);}obraSaving=false;fecharModalObra();renderHome();notice('Obra salva. Os RDOs anteriores mantêm os dados registrados na época.');}
+  catch(e){notice('Não foi possível salvar a obra: '+e.message);}finally{obraSaving=false;button.disabled=false;}
 }
+async function setObraDeleted(id,deleted){
+  const ref=db.collection('obras').doc(id);try{await db.runTransaction(async tx=>{const current=await tx.get(ref);if(!current.exists)throw Error('Obra não encontrada.');tx.update(ref,{excluida:deleted,modificadoEm:stamp()});});obras.set(id,{...obras.get(id),excluida:deleted});renderHome();notice(deleted?'Obra movida para a lixeira. Seus RDOs podem ser recuperados ao restaurá-la.':'Obra restaurada.');}catch(e){notice('Não foi possível alterar a obra: '+e.message);}
+}
+async function excluirObra(id){const obra=obras.get(id);if(!obra||obra.excluida)return;if(confirm('Mover a obra "'+obra.obra+'" para a lixeira? Seus RDOs ficarão ocultos e poderão ser recuperados ao restaurar a obra.'))await setObraDeleted(id,true);}
+async function restaurarObra(id){await setObraDeleted(id,false);}
 function safeImage(src){return typeof src==='string'&&/^data:image\/(png|jpeg|webp);base64,/i.test(src)?src:'';}
 function coletarMidia(){return {logo:document.getElementById('logoImg').getAttribute('src')===defaultLogo?'':safeImage(document.getElementById('logoImg').getAttribute('src')),fotos:[...document.querySelectorAll('#fotoGrid .foto-item')].map(el=>({src:safeImage(el.querySelector('img').getAttribute('src')),legenda:el.querySelector('input').value})),assinaturas:Object.fromEntries(Object.entries({exec:'assinExecImg',sup:'assinSupImg',fisc:'assinFiscImg'}).map(([key,id])=>[key,safeImage(document.getElementById(id).getAttribute('src'))]))};}
 function appendPhoto(src,legenda=''){

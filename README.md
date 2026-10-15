@@ -45,3 +45,6 @@ Não publique testes ou documentação na pasta pública. A publicação não mi
 `npm test` executa cenários isolados com Firebase simulado: recuperação de registros sem data, quantitativos sem duplicação após reaberturas, 31 relatórios em um mês, rascunho após falha de salvamento, conflito entre sessões, fotos/assinaturas e layout de impressão. O runner recarrega de fato a página com os dados salvos e gera um PDF de exemplo. O workflow renderiza esse PDF em PNG para inspeção visual.
 
 Para rodar no navegador sem instalar Chromium: `npm run test:serve`, depois abra `http://127.0.0.1:4174/test`. Essa rota sempre injeta o simulador e não acessa o Firebase real.
+
+## Gerenciar obras
+Cada obra possui Editar e Excluir. Editar altera o cadastro e os próximos RDOs, preservando os relatórios já preenchidos. Excluir pede confirmação e move a obra e seus relatórios para a lixeira; Restaurar recupera o acesso. Obras na lixeira não aceitam novos RDOs.
