@@ -476,9 +476,11 @@
   }
   .obra-card{
     border:1px solid var(--line); border-radius:4px; padding:16px; background:var(--paper);
-    cursor:pointer; transition:0.15s; border-top:3px solid var(--accent-2);
+    border-top:3px solid var(--accent-2);
   }
-  .obra-card:hover{box-shadow:0 3px 12px rgba(0,0,0,0.12); transform:translateY(-1px);}
+  .obra-card .report-link{transition:background-color .15s,border-color .15s,box-shadow .15s;}
+  .obra-card .report-link:hover{background:var(--accent-soft);border-color:var(--accent);box-shadow:0 2px 6px rgba(0,0,0,.12);}
+  .obra-card .report-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
   .obra-card h3{margin:0 0 8px; font-family:var(--serif); font-size:15px; color:var(--accent);}
   .obra-card .meta{font-family:var(--mono); font-size:10.5px; color:#5a6b7a; line-height:1.7;}
   .obra-card .meta b{color:var(--ink); font-weight:600;}
@@ -660,6 +662,36 @@
     section{break-inside:avoid;}
     input, textarea, select{border-color:#999 !important;}
   }
+[hidden]{display:none !important;}
+.saved-reports{padding:14px;border-top:1px solid var(--line);max-height:300px;overflow:auto;}
+.saved-reports h3{font-size:13px;margin:0 0 10px;}
+.report-link{display:block;width:100%;text-align:left;background:white;border:1px solid var(--line);padding:9px;margin:5px 0;border-radius:3px;cursor:pointer;}
+.report-link.current{border-color:var(--accent);background:var(--accent-soft);}
+.draft-label{font-size:11px;color:var(--warn);}
+.cal-dia{padding:0;font-family:var(--mono);}
+#saveBar{position:sticky;top:0;z-index:10;}#noticePanel{border-color:var(--warn);}
+#pdfReport{display:none;}
+@page{size:A4;margin:12mm;}
+@media print{
+ body{background:#fff!important;padding:0!important;color:#172534;}
+ body>*:not(#pdfReport){display:none!important;}
+ #pdfReport{display:block!important;font:10pt Arial,sans-serif;line-height:1.4;}
+ #pdfReport h1{font-size:17pt;margin:0 0 4mm;color:#1f4e79;}
+ #pdfReport h2{font-size:11pt;border-bottom:1px solid #a9b8c6;color:#1f4e79;padding-bottom:2mm;margin:6mm 0 3mm;break-after:avoid;}
+ #pdfReport p{margin:1.5mm 0;white-space:pre-wrap;overflow-wrap:anywhere;}
+ #pdfReport section{padding:0;border:0;break-inside:auto;}
+ #pdfReport table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:9pt;}
+ #pdfReport th,#pdfReport td{border:1px solid #bec7cf;padding:2mm;white-space:pre-wrap;overflow-wrap:anywhere;text-transform:none;letter-spacing:normal;}
+ #pdfReport thead{display:table-header-group;}#pdfReport tr{break-inside:avoid;}
+ #pdfReport .pdf-pair{display:grid;grid-template-columns:1fr 1fr;gap:3mm;}
+ #pdfReport .pdf-photo{break-inside:avoid;margin:3mm 0;}
+ #pdfReport .pdf-photo img{display:block;max-width:100%;max-height:100mm;object-fit:contain;}
+ #pdfReport .pdf-signatures{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm;break-inside:avoid;}
+ #pdfReport .pdf-signature img{max-height:22mm;max-width:100%;object-fit:contain;}
+ #pdfReport .pdf-signature p{font-size:8pt;}
+ #pdfReport .pdf-logo{max-height:18mm;max-width:36mm;float:right;}
+ #pdfReport .pdf-entry{margin:3mm 0;break-inside:avoid;}
+}
 </style>
 </head>
 <body>
@@ -682,6 +714,7 @@
   </div>
 </div>
 
+<div class="config-panel" id="legacyPanel" hidden><div class="config-body"><h2>RDOs antigos para recuperar</h2><p>Registros sem data ou sem vínculo com uma obra. Abra para revisar e salvar com a data correta.</p><div id="legacyList"></div></div></div>
 <!-- Modal adicionar obra -->
 <div class="modal-overlay" id="modalObra">
   <div class="modal-content">
@@ -716,59 +749,9 @@
   </div>
 </div>
 
-<!-- Painel de configuração Firebase -->
-<div class="config-panel" id="configPanel">
-  <div class="config-head">
-    <div>
-      <h2>Configuração de Colaboração</h2>
-      <div class="sub">Conecte ao Firebase para salvar automaticamente e compartilhar via link</div>
-    </div>
-    <span class="config-status" id="configStatus">Não configurado</span>
-  </div>
-  <div class="config-body">
-    <div class="config-note">
-      Para ativar o salvamento automático e o compartilhamento via link, você precisa criar um projeto gratuito no
-      <a href="https://console.firebase.google.com" target="_blank">Firebase Console</a> e preencher os dados abaixo.
-      <br><br>
-      <strong>Passos rápidos:</strong>
-      <ol style="margin:6px 0 0 18px; font-size:12px;">
-        <li>Crie um projeto no Firebase Console</li>
-        <li>Ative o <strong>Firestore Database</strong> (modo de teste)</li>
-        <li>Vá em Configurações do projeto → Seus apps → Adicionar app (Web)</li>
-        <li>Copie o objeto <code>firebaseConfig</code> e cole abaixo</li>
-      </ol>
-    </div>
-    <label>Configuração do Firebase (objeto JSON)</label>
-    <textarea id="firebaseConfigInput" placeholder='Cole aqui o objeto firebaseConfig, ex: {"apiKey":"...","authDomain":"...","projectId":"...","storageBucket":"...","messagingSenderId":"...","appId":"..."}'></textarea>
-    <label>Seu nome (para identificar edições no histórico)</label>
-    <input type="text" id="userNameInput" placeholder="Ex: João Silva">
-    <button class="btn btn-primary" onclick="salvarConfigFirebase()">Salvar configuração</button>
-    <button class="btn btn-ghost" onclick="limparConfigFirebase()" style="margin-left:8px;">Limpar</button>
-  </div>
-</div>
-
-<!-- Barra de colaboração -->
-<div class="collab-bar hidden" id="collabBar">
-  <div class="collab-left">
-    <span class="collab-status-dot offline" id="collabDot"></span>
-    <span class="collab-status-txt" id="collabStatus">Desconectado</span>
-  </div>
-  <div class="collab-link-box">
-    <input type="text" id="collabLink" readonly placeholder="Link de compartilhamento">
-    <button class="btn btn-ghost" onclick="copiarLink()">Copiar link</button>
-  </div>
-  <div class="collab-users" id="collabUsers"></div>
-</div>
-
-<!-- Histórico de modificações -->
-<div class="history-panel hidden" id="historyPanel">
-  <div class="history-head" onclick="toggleHistory()">
-    <h3>📜 Histórico de modificações</h3>
-    <span class="toggle" id="historyToggle">▼</span>
-  </div>
-  <div class="history-body hidden" id="historyBody"></div>
-</div>
-
+<div class="collab-bar" id="saveBar"><span id="saveState" role="status">Conectando...</span><span>Versão mínima · RDO por dia · PDF</span></div>
+<div class="config-panel" id="noticePanel" hidden><div class="config-body"><span id="noticeText" role="alert"></span></div></div>
+<div class="config-panel" id="recoveryPanel" hidden><div class="config-body"><strong>Recuperar RDO antigo</strong><p>Este relatório está sem data ou sem obra. Selecione os dois campos e salve para colocá-lo no calendário.</p><label for="recoveryObra">Obra</label><select id="recoveryObra"></select><label for="recoveryDate">Data do relatório</label><input id="recoveryDate" type="date"><button class="btn btn-primary" onclick="vincularLegado()">Vincular e salvar RDO</button></div></div>
 <div class="rdo-layout">
 
   <!-- Calendário lateral -->
@@ -789,7 +772,7 @@
         <span><span class="ponto hoje"></span> Hoje</span>
       </span>
     </div>
-  </aside>
+  <div class="saved-reports"><h3>RDOs salvos neste mês</h3><div id="savedReports"></div></div></aside>
 
   <div class="rdo-main">
 
@@ -938,7 +921,7 @@
   <section>
     <p class="section-label">Fotos <span class="count-badge" id="badgeFotos">0</span></p>
     <div class="foto-drop" id="fotoDrop" onclick="document.getElementById('fotoInput').click()">
-      Clique ou arraste imagens aqui para anexar
+      Clique ou arraste imagens aqui para anexar · até 6 fotos comprimidas por RDO
     </div>
     <input type="file" id="fotoInput" accept="image/*" multiple style="display:none;">
     <div class="foto-grid" id="fotoGrid"></div>
@@ -1000,8 +983,8 @@
 
   <div class="actions">
     <button class="btn btn-ghost" onclick="limparTudo()">Limpar formulário</button>
-    <button class="btn btn-primary" onclick="salvarRascunho()">💾 Salvar</button>
-    <button class="btn btn-ghost" onclick="window.print()">Imprimir / Exportar PDF</button>
+    <button class="btn btn-primary" onclick="salvarRascunho()">💾 Salvar RDO</button>
+    <button class="btn btn-ghost" onclick="exportarPDF()">Salvar em PDF</button>
   </div>
 
 </div>
@@ -1010,6 +993,7 @@
 </div><!-- /.rdo-layout -->
 
 <script>
+
 const DIAS = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
 
 const MAO_OBRA_DIRETA = ["Auxiliar de Mecânica","Ajudante","Apontador","Armador","Borracheiro","Carpinteiro",
@@ -1035,7 +1019,7 @@ function buildGroup(gridId, group, list){
   list.forEach(nome=>{
     const div = document.createElement('div');
     div.className = 'card-item';
-    div.innerHTML = `<div class="card-label">${nome}</div><input type="number" min="0" value="0" class="card-qty" data-group="${group}" oninput="calcularQuantitativos()">`;
+    div.innerHTML = `<div class="card-label">${escapeHTML(nome)}</div><input type="number" min="0" value="0" class="card-qty" data-group="${group}" oninput="calcularQuantitativos()">`;
     grid.appendChild(div);
   });
 }
@@ -1048,7 +1032,7 @@ function addCustomItem(group){
   const div = document.createElement('div');
   div.className = 'card-item custom';
   div.innerHTML = `<button class="del-btn card-del" onclick="this.closest('.card-item').remove(); calcularQuantitativos();">✕</button>
-    <div class="card-label" contenteditable="true">${nome}</div>
+    <div class="card-label" contenteditable="true">${escapeHTML(nome)}</div>
     <input type="number" min="0" value="0" class="card-qty" data-group="${group}" oninput="calcularQuantitativos()">`;
   grid.appendChild(div);
   calcularQuantitativos();
@@ -1126,7 +1110,7 @@ function calcularDatas(){
   }
   registrarModificacao();
 }
-['dataRelatorio','dataInicio','dataFim','prazoContratual'].forEach(id=>{
+['dataInicio','dataFim','prazoContratual'].forEach(id=>{
   document.getElementById(id).addEventListener('input', calcularDatas);
 });
 
@@ -1148,8 +1132,8 @@ function addAtividade(cod='', desc='', status='Não iniciada'){
   const tbody = document.getElementById('bodyAtiv');
   const tr = document.createElement('tr');
   tr.innerHTML = `
-    <td><input type="text" value="${cod}" placeholder="N°"></td>
-    <td><input type="text" value="${desc}" placeholder="Descrição da atividade"></td>
+    <td><input type="text" value="" placeholder="N°"></td>
+    <td><input type="text" value="" placeholder="Descrição da atividade"></td>
     <td><select class="status-ativ">
       <option ${status==='Não iniciada'?'selected':''}>Não iniciada</option>
       <option ${status==='Em andamento'?'selected':''}>Em andamento</option>
@@ -1158,6 +1142,8 @@ function addAtividade(cod='', desc='', status='Não iniciada'){
     </select></td>
     <td class="del-col"><button class="del-btn" onclick="this.closest('tr').remove(); atualizarBadges();">✕</button></td>
   `;
+  tr.querySelectorAll('input')[0].value=cod;
+  tr.querySelectorAll('input')[1].value=desc;
   tbody.appendChild(tr);
   atualizarBadges();
 }
@@ -1168,31 +1154,37 @@ function agoraLocal(){
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
   return d.toISOString().slice(0,16);
 }
-function addComentario(autor='', texto=''){
+function addComentario(autor='', texto='', data=agoraLocal()){
   const div = document.createElement('div');
   div.className = 'entry';
   div.innerHTML = `
     <div class="entry-head">
-      <input type="text" value="${autor}" placeholder="Autor">
-      <input type="datetime-local" value="${agoraLocal()}">
+      <input type="text" value="" placeholder="Autor">
+      <input type="datetime-local" value="">
       <button class="del-btn" onclick="this.closest('.entry').remove(); atualizarBadges();">✕</button>
     </div>
-    <div class="entry-body"><textarea placeholder="Descreva o comentário...">${texto}</textarea></div>
+    <div class="entry-body"><textarea placeholder="Descreva o comentário..."></textarea></div>
   `;
+  div.querySelector('input[type=text]').value=autor;
+  div.querySelector('input[type=datetime-local]').value=data;
+  div.querySelector('textarea').value=texto;
   document.getElementById('listaComentarios').appendChild(div);
   atualizarBadges();
 }
-function addOcorrencia(autor='', texto=''){
+function addOcorrencia(autor='', texto='', data=agoraLocal()){
   const div = document.createElement('div');
   div.className = 'entry';
   div.innerHTML = `
     <div class="entry-head">
-      <input type="text" value="${autor}" placeholder="Autor">
-      <input type="datetime-local" value="${agoraLocal()}">
+      <input type="text" value="" placeholder="Autor">
+      <input type="datetime-local" value="">
       <button class="del-btn" onclick="this.closest('.entry').remove(); atualizarBadges();">✕</button>
     </div>
-    <div class="entry-body"><textarea placeholder="Descreva a ocorrência...">${texto}</textarea></div>
+    <div class="entry-body"><textarea placeholder="Descreva a ocorrência..."></textarea></div>
   `;
+  div.querySelector('input[type=text]').value=autor;
+  div.querySelector('input[type=datetime-local]').value=data;
+  div.querySelector('textarea').value=texto;
   document.getElementById('listaOcorrencias').appendChild(div);
   atualizarBadges();
 }
@@ -1213,42 +1205,14 @@ fotoDrop.addEventListener('dragover', e => { e.preventDefault(); fotoDrop.classL
 fotoDrop.addEventListener('dragleave', () => fotoDrop.classList.remove('drag'));
 fotoDrop.addEventListener('drop', e => { e.preventDefault(); fotoDrop.classList.remove('drag'); handleFotos(e.dataTransfer.files); });
 
-function handleFotos(files){
-  [...files].forEach(file=>{
-    if(!file.type.startsWith('image/')) return;
-    const reader = new FileReader();
-    reader.onload = ev => {
-      const div = document.createElement('div');
-      div.className = 'foto-item';
-      div.innerHTML = `
-        <img src="${ev.target.result}">
-        <input type="text" placeholder="Legenda">
-        <button class="del-btn" onclick="this.closest('.foto-item').remove(); atualizarFotoBadge();">✕</button>
-      `;
-      fotoGrid.appendChild(div);
-      atualizarFotoBadge();
-    };
-    reader.readAsDataURL(file);
-  });
-}
+/* handleFotos em app.js */
 function atualizarFotoBadge(){
   document.getElementById('badgeFotos').textContent = document.querySelectorAll('.foto-item').length;
   registrarModificacao();
 }
 
 // ---------- Assinaturas ----------
-function carregarAssinatura(input, imgId){
-  const file = input.files[0];
-  if(!file || !file.type.startsWith('image/')) return;
-  const reader = new FileReader();
-  reader.onload = ev=>{
-    const img = document.getElementById(imgId);
-    img.src = ev.target.result;
-    img.style.display = 'block';
-    registrarModificacao();
-  };
-  reader.readAsDataURL(file);
-}
+/* carregarAssinatura em app.js */
 
 function atualizarStatusAssin(qual){
   const sel = document.querySelector(`[data-assin="${qual}"]`);
@@ -1270,27 +1234,15 @@ document.getElementById('criadoPor').addEventListener('input', ()=>{
   document.getElementById('modificadoPor').textContent = document.getElementById('criadoPor').value || '—';
 });
 document.addEventListener('input', e=>{
-  if(e.target.closest('.sheet')) registrarModificacao();
+  if(e.target.closest('.sheet') && e.target.id!=='dataRelatorio') registrarModificacao();
 });
 
 // ---------- Ações gerais ----------
-function limparTudo(){
-  if(!confirm('Limpar todos os dados preenchidos neste formulário?')) return;
-  document.querySelectorAll('input[type=text], input[type=date], input[type=number], input[type=email], input[type=datetime-local], textarea').forEach(i=>i.value='');
-  document.querySelectorAll('select').forEach(s=>s.selectedIndex=0);
-  document.querySelectorAll('.card-qty').forEach(i=>i.value=0);
-  document.querySelectorAll('.card-item.custom').forEach(el=>el.remove());
-  document.getElementById('bodyAtiv').innerHTML='';
-  document.getElementById('listaComentarios').innerHTML='';
-  document.getElementById('listaOcorrencias').innerHTML='';
-  fotoGrid.innerHTML='';
-  document.getElementById('periodoTxt').textContent='Período do contrato: —';
-  calcularQuantitativos(); atualizarBadges(); atualizarFotoBadge(); calcularDatas();
-}
+/* limparTudo em app.js */
 
 function coletarDados(){
-  const dados = { campos:{}, maoObra:{}, equipamentos:{}, atividades:[], comentarios:[], ocorrencias:[], clima:{}, assinaturas:{} };
-  document.querySelectorAll('.sheet input[id], .sheet textarea[id]').forEach(el=>{ dados.campos[el.id] = el.value; });
+  const dados = { schemaVersion:3, midia:coletarMidia(), campos:{}, maoObra:{}, equipamentos:{}, atividades:[], comentarios:[], ocorrencias:[], clima:{}, assinaturas:{} };
+  document.querySelectorAll('.sheet input[id], .sheet textarea[id]').forEach(el=>{ if(el.type!=="file") dados.campos[el.id] = el.value; });
   document.querySelectorAll('[data-clima]').forEach(el=>{ dados.clima[el.dataset.clima] = el.value; });
   document.querySelectorAll('.card-item').forEach(card=>{
     const label = card.querySelector('.card-label').textContent.trim();
@@ -1327,731 +1279,11 @@ function coletarDados(){
   return dados;
 }
 
-function salvarRascunho(){
-  // Se estiver conectado ao Firebase, salva no banco
-  if(db && docId){
-    salvarNoFirebase().then(()=>{
-      alert('RDO salvo com sucesso!');
-    });
-    return;
-  }
-  // Fallback: baixar JSON local
-  const dados = coletarDados();
-  const blob = new Blob([JSON.stringify(dados, null, 2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  const data = document.getElementById('dataRelatorio').value || 'sem-data';
-  a.href = url;
-  a.download = `RDO-${data}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
+/* salvarRascunho em app.js */
 
-// ============================================================
-// CALENDÁRIO LATERAL
-// ============================================================
-let calAno = new Date().getFullYear();
-let calMes = new Date().getMonth();
-let calDiasComRDO = new Set();
 
-function calMudarMes(delta){
-  calMes += delta;
-  if(calMes < 0){ calMes = 11; calAno--; }
-  if(calMes > 11){ calMes = 0; calAno++; }
-  renderCalendario();
-}
-
-function calDataISO(ano, mes, dia){
-  return `${ano}-${String(mes+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
-}
-
-function renderCalendario(){
-  const grid = document.getElementById('calGrid');
-  const titulo = document.getElementById('calTitulo');
-  grid.innerHTML = '';
-  const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-  titulo.textContent = `${meses[calMes]} ${calAno}`;
-
-  const primeiroDia = new Date(calAno, calMes, 1).getDay();
-  const diasNoMes = new Date(calAno, calMes + 1, 0).getDate();
-  const hoje = new Date();
-  const hojeISO = calDataISO(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
-  const dataSelecionada = document.getElementById('dataRelatorio').value;
-
-  // Células vazias antes do primeiro dia
-  for(let i=0; i<primeiroDia; i++){
-    const vazio = document.createElement('div');
-    vazio.className = 'cal-dia vazio';
-    grid.appendChild(vazio);
-  }
-
-  // Dias do mês
-  for(let d=1; d<=diasNoMes; d++){
-    const iso = calDataISO(calAno, calMes, d);
-    const div = document.createElement('div');
-    div.className = 'cal-dia';
-    div.textContent = d;
-    div.dataset.data = iso;
-
-    if(iso === hojeISO) div.classList.add('hoje');
-    if(iso === dataSelecionada) div.classList.add('selecionado');
-    if(calDiasComRDO.has(iso)) div.classList.add('has-rdo');
-    if(iso > hojeISO) div.classList.add('futuro');
-
-    div.onclick = ()=>{
-      document.getElementById('dataRelatorio').value = iso;
-      document.getElementById('calDataSelecionada').textContent = formatBR(iso);
-      calcularDatas();
-      renderCalendario();
-    };
-
-    grid.appendChild(div);
-  }
-
-  document.getElementById('calDataSelecionada').textContent = dataSelecionada ? formatBR(dataSelecionada) : '—';
-}
-
-// Carregar dias que já possuem RDO no Firebase
-function carregarDiasComRDO(){
-  if(!db || !obraAtualId) return;
-  db.collection('rdos').where('obraId', '==', obraAtualId).get().then(snap=>{
-    calDiasComRDO.clear();
-    snap.forEach(doc=>{
-      const dados = doc.data().dados;
-      if(dados && dados.campos && dados.campos.dataRelatorio){
-        calDiasComRDO.add(dados.campos.dataRelatorio);
-      }
-    });
-    renderCalendario();
-  }).catch(e=>console.error('Erro ao carregar dias com RDO:', e));
-}
-
-// ---------- Logo do cabeçalho ----------
-document.getElementById('logoInput').addEventListener('change', e=>{
-  const file = e.target.files[0];
-  if(!file || !file.type.startsWith('image/')) return;
-  const reader = new FileReader();
-  reader.onload = ev=>{
-    const img = document.getElementById('logoImg');
-    img.src = ev.target.result;
-    img.style.display = 'block';
-    document.getElementById('logoPlaceholder').style.display = 'none';
-  };
-  reader.readAsDataURL(file);
-});
-
-// ============================================================
-// OBRAS - CADASTRO E LISTAGEM
-// ============================================================
-let obraAtualId = null;
-let unsubObras = null;
-
-function abrirModalObra(){
-  document.getElementById('modalObra').classList.add('visivel');
-  document.getElementById('novaObra').focus();
-}
-
-function fecharModalObra(){
-  document.getElementById('modalObra').classList.remove('visivel');
-}
-
-function calcularPrazoAuto(){
-  const ini = document.getElementById('novaDataInicio').value;
-  const fim = document.getElementById('novaDataFim').value;
-  if(ini && fim){
-    const [y1,m1,d1] = ini.split('-').map(Number);
-    const [y2,m2,d2] = fim.split('-').map(Number);
-    const dias = Math.round((new Date(y2,m2-1,d2) - new Date(y1,m1-1,d1)) / 86400000);
-    if(dias >= 0) document.getElementById('novoPrazo').value = dias;
-  }
-}
-document.getElementById('novaDataInicio').addEventListener('change', calcularPrazoAuto);
-document.getElementById('novaDataFim').addEventListener('change', calcularPrazoAuto);
-
-async function salvarObra(){
-  const obra = document.getElementById('novaObra').value.trim();
-  if(!obra){
-    alert('Informe o nome da obra.');
-    return;
-  }
-  if(!db){
-    alert('Firebase não conectado.');
-    return;
-  }
-  try{
-    const dadosObra = {
-      obra: obra,
-      local: document.getElementById('novoLocal').value.trim(),
-      contratada: document.getElementById('novaContratada').value.trim(),
-      responsavel: document.getElementById('novoResponsavel').value.trim(),
-      contratoObra: document.getElementById('novoContratoObra').value.trim(),
-      contratoSup: document.getElementById('novoContratoSup').value.trim(),
-      dataInicio: document.getElementById('novaDataInicio').value,
-      dataFim: document.getElementById('novaDataFim').value,
-      prazoContratual: document.getElementById('novoPrazo').value,
-      criadoPor: myUserName,
-      criadoEm: firebase.firestore.FieldValue.serverTimestamp()
-    };
-    await db.collection('obras').add(dadosObra);
-    fecharModalObra();
-    // Limpar campos do modal
-    ['novaObra','novoLocal','novaContratada','novoResponsavel','novoContratoObra','novoContratoSup','novaDataInicio','novaDataFim','novoPrazo'].forEach(id=>{
-      document.getElementById(id).value = '';
-    });
-    carregarObras();
-  }catch(e){
-    console.error('Erro ao salvar obra:', e);
-    alert('Erro ao salvar obra. Verifique a conexão.');
-  }
-}
-
-function carregarObras(){
-  if(!db) return;
-  if(unsubObras) unsubObras();
-  unsubObras = db.collection('obras').orderBy('criadoEm', 'desc').onSnapshot(snap=>{
-    const grid = document.getElementById('obrasGrid');
-    const vazio = document.getElementById('obrasVazio');
-    grid.innerHTML = '';
-    let count = 0;
-    snap.forEach(doc=>{
-      count++;
-      const o = doc.data();
-      const card = document.createElement('div');
-      card.className = 'obra-card';
-      card.innerHTML = `
-        <h3>${o.obra || 'Sem nome'}</h3>
-        <div class="meta">
-          ${o.local ? `<div><b>Local:</b> ${o.local}</div>` : ''}
-          ${o.contratada ? `<div><b>Contratada:</b> ${o.contratada}</div>` : ''}
-          ${o.contratoObra ? `<div><b>Contrato:</b> ${o.contratoObra}</div>` : ''}
-          ${o.dataInicio ? `<div><b>Início:</b> ${formatBR(o.dataInicio)}</div>` : ''}
-          ${o.dataFim ? `<div><b>Fim:</b> ${formatBR(o.dataFim)}</div>` : ''}
-        </div>
-        <div class="rodape">
-          <span>${o.responsavel || '—'}</span>
-          <div>
-            <button class="btn btn-primary" onclick="abrirRDOObra('${doc.id}')">Abrir RDO</button>
-            <button class="btn-excluir" onclick="excluirObra('${doc.id}')">Excluir</button>
-          </div>
-        </div>
-      `;
-      grid.appendChild(card);
-    });
-    if(count === 0){
-      grid.appendChild(vazio);
-    }
-  }, err=>{
-    console.error('Erro ao carregar obras:', err);
-  });
-}
-
-function abrirRDOObra(obraId){
-  obraAtualId = obraId;
-  // Buscar dados da obra e preencher campos fixos
-  db.collection('obras').doc(obraId).get().then(doc=>{
-    if(!doc.exists) return;
-    const o = doc.data();
-    document.getElementById('obra').value = o.obra || '';
-    document.getElementById('local').value = o.local || '';
-    document.getElementById('contratada').value = o.contratada || '';
-    document.getElementById('responsavel').value = o.responsavel || '';
-    document.getElementById('contratoObra').value = o.contratoObra || '';
-    document.getElementById('contratoSup').value = o.contratoSup || '';
-    document.getElementById('dataInicio').value = o.dataInicio || '';
-    document.getElementById('dataFim').value = o.dataFim || '';
-    document.getElementById('prazoContratual').value = o.prazoContratual || '';
-    calcularDatas();
-    // Mostrar formulário RDO
-    document.getElementById('paginaObras').classList.remove('visivel');
-    document.querySelector('.sheet').classList.add('visivel');
-    document.querySelector('.rdo-layout').classList.add('visivel');
-    document.getElementById('collabBar').classList.remove('hidden');
-    document.getElementById('historyPanel').classList.remove('hidden');
-    // Criar novo documento RDO para esta obra
-    criarNovoDoc(obraId);
-    // Carregar dias com RDO no calendário
-    carregarDiasComRDO();
-  }).catch(e=>{
-    console.error('Erro ao buscar obra:', e);
-    alert('Erro ao abrir obra.');
-  });
-}
-
-async function excluirObra(obraId){
-  if(!confirm('Excluir esta obra? Todos os RDOs associados também serão excluídos.')) return;
-  try{
-    // Excluir RDOs da obra
-    const rdos = await db.collection('rdos').where('obraId', '==', obraId).get();
-    const batch = db.batch();
-    rdos.forEach(doc=>{
-      batch.delete(doc.ref);
-    });
-    // Excluir a obra
-    batch.delete(db.collection('obras').doc(obraId));
-    await batch.commit();
-    alert('Obra excluída com sucesso!');
-  }catch(e){
-    console.error('Erro ao excluir obra:', e);
-    alert('Erro ao excluir obra.');
-  }
-}
-
-function voltarParaObras(){
-  if(unsubDoc){ unsubDoc(); unsubDoc = null; }
-  if(unsubHistory){ unsubHistory(); unsubHistory = null; }
-  if(unsubPresence){ unsubPresence(); unsubPresence = null; }
-  docId = null;
-  obraAtualId = null;
-  document.querySelector('.sheet').classList.remove('visivel');
-  document.querySelector('.rdo-layout').classList.remove('visivel');
-  document.getElementById('collabBar').classList.add('hidden');
-  document.getElementById('historyPanel').classList.add('hidden');
-  document.getElementById('paginaObras').classList.add('visivel');
-  // Limpar URL
-  const url = new URL(window.location.href);
-  url.searchParams.delete('doc');
-  url.searchParams.delete('obra');
-  window.history.replaceState({}, '', url);
-}
-
-// ============================================================
-// FIREBASE - COLABORAÇÃO, AUTO-SAVE E HISTÓRICO
-// ============================================================
-let db = null;
-let app = null;
-let docId = null;
-let unsubDoc = null;
-let unsubHistory = null;
-let unsubPresence = null;
-let saveTimer = null;
-let isApplyingRemote = false;
-let lastSavedData = '';
-let myUserId = null;
-let myUserName = '';
-
-const STORAGE_KEY = 'rdo_firebase_config';
-const USER_KEY = 'rdo_user_name';
-
-// Configuração embutida do Firebase (projeto rdo-piloto)
-// Permite que qualquer pessoa que abra o link já esteja conectada automaticamente
-const EMBEDDED_FIREBASE_CONFIG = {
-  "apiKey": "AIzaSyAYd1LB-i5WL2IFrw3TfHBKc6j7MrJ6QK8",
-  "authDomain": "rdo-piloto.firebaseapp.com",
-  "projectId": "rdo-piloto",
-  "storageBucket": "rdo-piloto.firebasestorage.app",
-  "messagingSenderId": "817337792703",
-  "appId": "1:817337792703:web:d9b331e29291bd19062e0a"
-};
-
-function getConfigFromStorage(){
-  try{
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  }catch(e){ return null; }
-}
-
-function getEffectiveConfig(){
-  // Prioriza configuração salva manualmente, senão usa a embutida
-  return getConfigFromStorage() || EMBEDDED_FIREBASE_CONFIG;
-}
-
-function getUserName(){
-  return localStorage.getItem(USER_KEY) || '';
-}
-
-function salvarConfigFirebase(){
-  const raw = document.getElementById('firebaseConfigInput').value.trim();
-  const nome = document.getElementById('userNameInput').value.trim();
-  if(!raw){
-    alert('Cole a configuração do Firebase no campo acima.');
-    return;
-  }
-  let config;
-  try{
-    config = JSON.parse(raw);
-  }catch(e){
-    alert('JSON inválido. Verifique se copiou o objeto firebaseConfig corretamente.');
-    return;
-  }
-  if(!config.apiKey || !config.projectId){
-    alert('Configuração incompleta. Certifique-se de incluir apiKey e projectId.');
-    return;
-  }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
-  if(nome) localStorage.setItem(USER_KEY, nome);
-  document.getElementById('configPanel').classList.add('hidden');
-  initFirebase();
-}
-
-function limparConfigFirebase(){
-  if(!confirm('Remover a configuração do Firebase deste navegador?')) return;
-  localStorage.removeItem(STORAGE_KEY);
-  document.getElementById('firebaseConfigInput').value = '';
-  document.getElementById('userNameInput').value = '';
-  document.getElementById('configPanel').classList.remove('hidden');
-  document.getElementById('configStatus').textContent = 'Não configurado';
-  document.getElementById('configStatus').className = 'config-status';
-  document.getElementById('collabBar').classList.add('hidden');
-  document.getElementById('historyPanel').classList.add('hidden');
-  if(unsubDoc){ unsubDoc(); unsubDoc = null; }
-  if(unsubHistory){ unsubHistory(); unsubHistory = null; }
-  if(unsubPresence){ unsubPresence(); unsubPresence = null; }
-  db = null; app = null;
-}
-
-function initFirebase(){
-  const config = getEffectiveConfig();
-  if(!config) return;
-  try{
-    app = firebase.initializeApp(config);
-    db = firebase.firestore(app);
-    document.getElementById('configPanel').classList.add('hidden');
-    document.getElementById('configStatus').textContent = 'Conectado';
-    document.getElementById('configStatus').className = 'config-status ok';
-    myUserName = getUserName() || 'Anônimo';
-    myUserId = localStorage.getItem('rdo_user_id') || 'u_' + Math.random().toString(36).slice(2,10);
-    localStorage.setItem('rdo_user_id', myUserId);
-    setCollabStatus('online', 'Conectado');
-    // Carregar lista de obras na página principal
-    carregarObras();
-    // Verificar se veio com obra na URL
-    setupDocFromURL();
-  }catch(e){
-    console.error('Erro ao inicializar Firebase:', e);
-    document.getElementById('configStatus').textContent = 'Erro de conexão';
-    document.getElementById('configStatus').className = 'config-status err';
-  }
-}
-
-function setCollabStatus(state, txt){
-  const dot = document.getElementById('collabDot');
-  dot.className = 'collab-status-dot ' + state;
-  document.getElementById('collabStatus').textContent = txt;
-}
-
-function setupDocFromURL(){
-  const params = new URLSearchParams(window.location.search);
-  const urlDoc = params.get('doc');
-  const urlObra = params.get('obra');
-  if(urlDoc){
-    docId = urlDoc;
-    // Mostrar formulário RDO
-    document.getElementById('paginaObras').classList.remove('visivel');
-    document.querySelector('.sheet').classList.add('visivel');
-    document.getElementById('collabBar').classList.remove('hidden');
-    document.getElementById('historyPanel').classList.remove('hidden');
-    subscribeDoc();
-    updateLinkField();
-  } else if(urlObra){
-    abrirRDOObra(urlObra);
-  }
-  // Se não veio nada na URL, fica na página de obras
-}
-
-async function criarNovoDoc(obraId){
-  try{
-    const ref = await db.collection('rdos').add({
-      dados: coletarDados(),
-      obraId: obraId || null,
-      criadoPor: myUserName,
-      criadoEm: firebase.firestore.FieldValue.serverTimestamp(),
-      modificadoPor: myUserName,
-      modificadoEm: firebase.firestore.FieldValue.serverTimestamp(),
-      versao: 1
-    });
-    docId = ref.id;
-    const url = new URL(window.location.href);
-    url.searchParams.set('doc', docId);
-    if(obraId) url.searchParams.set('obra', obraId);
-    window.history.replaceState({}, '', url);
-    updateLinkField();
-    registrarHistorico('Documento criado');
-    subscribeDoc();
-  }catch(e){
-    console.error('Erro ao criar documento:', e);
-    // Identificar o motivo real do erro
-    let motivo = 'Erro ao criar documento';
-    if(e && e.code){
-      switch(e.code){
-        case 'permission-denied':
-          motivo = 'Permissão negada — verifique as regras do Firestore no Firebase Console';
-          break;
-        case 'unavailable':
-          motivo = 'Firebase indisponível — verifique sua conexão com a internet';
-          break;
-        case 'not-found':
-          motivo = 'Firestore não encontrado — verifique se o Firestore Database está ativado no Firebase Console';
-          break;
-        case 'failed-precondition':
-          motivo = 'Firestore não ativado — ative o Firestore Database no Firebase Console';
-          break;
-        default:
-          motivo = 'Erro ao criar documento: ' + (e.message || e.code || 'erro desconhecido');
-      }
-    } else if(e && e.message){
-      motivo = 'Erro ao criar documento: ' + e.message;
-    }
-    setCollabStatus('offline', motivo);
-    // Fallback local: permite preencher o RDO mesmo sem Firebase
-    alert(motivo + '\n\nO RDO será aberto em modo local. Use o botão "💾 Salvar" para baixar o arquivo JSON.');
-  }
-}
-
-function updateLinkField(){
-  const url = new URL(window.location.href);
-  url.searchParams.set('doc', docId);
-  document.getElementById('collabLink').value = url.toString();
-}
-
-function copiarLink(){
-  const input = document.getElementById('collabLink');
-  input.select();
-  document.execCommand('copy');
-  alert('Link copiado! Compartilhe com quem deseja colaborar.');
-}
-
-function subscribeDoc(){
-  if(!db || !docId) return;
-  if(unsubDoc) unsubDoc();
-  unsubDoc = db.collection('rdos').doc(docId).onSnapshot(snap=>{
-    if(!snap.exists) return;
-    const data = snap.data();
-    const json = JSON.stringify(data.dados);
-    if(json !== lastSavedData){
-      isApplyingRemote = true;
-      aplicarDados(data.dados);
-      lastSavedData = json;
-      isApplyingRemote = false;
-      document.getElementById('modificadoPor').textContent = data.modificadoPor || '—';
-      document.getElementById('modificadoEm').textContent = data.modificadoEm ? new Date(data.modificadoEm.toMillis()).toLocaleString('pt-BR') : '—';
-    }
-  }, err=>{
-    console.error('Erro no snapshot:', err);
-    setCollabStatus('offline', 'Erro de conexão');
-  });
-  subscribeHistory();
-  subscribePresence();
-}
-
-function aplicarDados(dados){
-  if(!dados) return;
-  if(dados.campos){
-    Object.entries(dados.campos).forEach(([id, val])=>{
-      const el = document.getElementById(id);
-      if(el) el.value = val || '';
-    });
-  }
-  if(dados.clima){
-    Object.entries(dados.clima).forEach(([key, val])=>{
-      const el = document.querySelector(`[data-clima="${key}"]`);
-      if(el) el.value = val || '';
-    });
-  }
-  // Mão de obra e equipamentos
-  document.querySelectorAll('.card-item.custom').forEach(el=>el.remove());
-  const grids = {direta:'gridDireta', construtora:'gridConstrutora', indireta:'gridIndireta', equip:'gridEquip'};
-  Object.entries(grids).forEach(([group, gridId])=>{
-    const grid = document.getElementById(gridId);
-    const items = group==='equip' ? (dados.equipamentos?.lista||[]) : (dados.maoObra?.[group]||[]);
-    items.forEach(item=>{
-      const nome = item.funcao || item.item;
-      const qtd = item.qtd;
-      const div = document.createElement('div');
-      div.className = 'card-item custom';
-      div.innerHTML = `<button class="del-btn card-del" onclick="this.closest('.card-item').remove(); calcularQuantitativos();">✕</button>
-        <div class="card-label" contenteditable="true">${nome}</div>
-        <input type="number" min="0" value="${qtd}" class="card-qty" data-group="${group}" oninput="calcularQuantitativos()">`;
-      grid.appendChild(div);
-    });
-  });
-  // Atividades
-  document.getElementById('bodyAtiv').innerHTML = '';
-  (dados.atividades||[]).forEach(a=>addAtividade(a.codigo, a.descricao, a.status));
-  if(!dados.atividades || dados.atividades.length===0) addAtividade();
-  // Comentários
-  document.getElementById('listaComentarios').innerHTML = '';
-  (dados.comentarios||[]).forEach(c=>addComentario(c.autor, c.texto));
-  // Ocorrências
-  document.getElementById('listaOcorrencias').innerHTML = '';
-  (dados.ocorrencias||[]).forEach(o=>addOcorrencia(o.autor, o.texto));
-  // Assinaturas
-  if(dados.assinaturas){
-    ['exec','sup','fisc'].forEach(q=>{
-      const a = dados.assinaturas[q];
-      if(!a) return;
-      const sel = document.querySelector(`[data-assin="${q}"]`);
-      if(sel) sel.value = a.status || 'Aguardando Aprovação';
-      document.getElementById(q+'Nome').value = a.nome || '';
-      document.getElementById(q+'Email').value = a.email || '';
-      const elCargo = document.getElementById(q+'Cargo');
-      const elData = document.getElementById(q+'Data');
-      if(elCargo) elCargo.value = a.cargo || '';
-      if(elData) elData.value = a.data || '';
-      atualizarStatusAssin(q);
-    });
-  }
-  calcularQuantitativos();
-  calcularDatas();
-  atualizarBadges();
-  atualizarFotoBadge();
-}
-
-// ---------- Auto-save com debounce ----------
-function agendarSave(){
-  if(!db || !docId) return;
-  clearTimeout(saveTimer);
-  setCollabStatus('saving', 'Salvando...');
-  saveTimer = setTimeout(()=>{
-    salvarNoFirebase();
-  }, 800);
-}
-
-async function salvarNoFirebase(){
-  if(!db || !docId) return;
-  const dados = coletarDados();
-  const json = JSON.stringify(dados);
-  if(json === lastSavedData){
-    setCollabStatus('online', 'Conectado');
-    return;
-  }
-  try{
-    const ref = db.collection('rdos').doc(docId);
-    const snap = await ref.get();
-    const versao = (snap.exists && snap.data().versao) ? snap.data().versao + 1 : 1;
-    await ref.update({
-      dados: dados,
-      modificadoPor: myUserName,
-      modificadoEm: firebase.firestore.FieldValue.serverTimestamp(),
-      versao: versao
-    });
-    lastSavedData = json;
-    setCollabStatus('online', 'Salvo');
-    setTimeout(()=>setCollabStatus('online', 'Conectado'), 2000);
-  }catch(e){
-    console.error('Erro ao salvar:', e);
-    setCollabStatus('offline', 'Erro ao salvar');
-  }
-}
-
-// ---------- Histórico ----------
-async function registrarHistorico(descricao){
-  if(!db || !docId) return;
-  try{
-    await db.collection('rdos').doc(docId).collection('historico').add({
-      autor: myUserName,
-      data: firebase.firestore.FieldValue.serverTimestamp(),
-      descricao: descricao,
-      dados: coletarDados()
-    });
-  }catch(e){ console.error('Erro ao registrar histórico:', e); }
-}
-
-function subscribeHistory(){
-  if(!db || !docId) return;
-  if(unsubHistory) unsubHistory();
-  unsubHistory = db.collection('rdos').doc(docId).collection('historico')
-    .orderBy('data', 'desc').limit(50)
-    .onSnapshot(snap=>{
-      const body = document.getElementById('historyBody');
-      body.innerHTML = '';
-      snap.forEach(doc=>{
-        const h = doc.data();
-        const div = document.createElement('div');
-        div.className = 'history-item';
-        const quando = h.data ? new Date(h.data.toMillis()).toLocaleString('pt-BR') : '—';
-        div.innerHTML = `
-          <div>
-            <div class="who">${h.autor || 'Anônimo'}</div>
-            <div class="when">${quando}</div>
-          </div>
-          <div class="what">${h.descricao || 'Edição'}</div>
-          <button class="btn btn-ghost" onclick="restaurarVersao('${doc.id}')">Restaurar</button>
-        `;
-        body.appendChild(div);
-      });
-    });
-}
-
-function toggleHistory(){
-  const body = document.getElementById('historyBody');
-  const toggle = document.getElementById('historyToggle');
-  body.classList.toggle('hidden');
-  toggle.textContent = body.classList.contains('hidden') ? '▼' : '▲';
-}
-
-async function restaurarVersao(histId){
-  if(!confirm('Restaurar esta versão? Os dados atuais serão substituídos.')) return;
-  try{
-    const snap = await db.collection('rdos').doc(docId).collection('historico').doc(histId).get();
-    if(!snap.exists) return;
-    const h = snap.data();
-    if(h.dados){
-      isApplyingRemote = true;
-      aplicarDados(h.dados);
-      isApplyingRemote = false;
-      await salvarNoFirebase();
-      registrarHistorico('Versão restaurada');
-      alert('Versão restaurada!');
-    }
-  }catch(e){ console.error('Erro ao restaurar:', e); }
-}
-
-// ---------- Presença (usuários online) ----------
-function subscribePresence(){
-  if(!db || !docId) return;
-  if(unsubPresence) unsubPresence();
-  const presenceRef = db.collection('rdos').doc(docId).collection('presenca').doc(myUserId);
-  presenceRef.set({
-    nome: myUserName,
-    online: true,
-    ultimaAtividade: firebase.firestore.FieldValue.serverTimestamp()
-  });
-  window.addEventListener('beforeunload', ()=>{
-    presenceRef.update({online: false});
-  });
-  unsubPresence = db.collection('rdos').doc(docId).collection('presenca')
-    .onSnapshot(snap=>{
-      const usersDiv = document.getElementById('collabUsers');
-      usersDiv.innerHTML = '';
-      snap.forEach(doc=>{
-        const p = doc.data();
-        if(p.online){
-          const chip = document.createElement('span');
-          chip.className = 'collab-user-chip' + (doc.id===myUserId ? ' you' : '');
-          chip.textContent = p.nome + (doc.id===myUserId ? ' (você)' : '');
-          usersDiv.appendChild(chip);
-        }
-      });
-    });
-}
-
-// ---------- Interceptar modificações para auto-save ----------
-const originalRegistrarModificacao = registrarModificacao;
-registrarModificacao = function(){
-  originalRegistrarModificacao();
-  if(!isApplyingRemote) agendarSave();
-};
-
-// ---------- Inicialização ----------
-buildGroup('gridDireta','direta',MAO_OBRA_DIRETA);
-buildGroup('gridConstrutora','construtora',MAO_OBRA_CONSTRUTORA);
-buildGroup('gridIndireta','indireta',MAO_OBRA_INDIRETA);
-buildGroup('gridEquip','equip',EQUIPAMENTOS);
-addAtividade();
-calcularQuantitativos();
-calcularDatas();
-atualizarBadges();
-renderCalendario();
-
-// Inicializar automaticamente com a configuração embutida
-// (ou com a configuração salva manualmente, se existir)
-const savedConfig = getConfigFromStorage();
-if(savedConfig){
-  document.getElementById('firebaseConfigInput').value = JSON.stringify(savedConfig);
-  document.getElementById('userNameInput').value = getUserName();
-}
-initFirebase();
 </script>
-
+<div id="pdfReport" aria-hidden="true"></div>
+<script src="app.js"></script>
 </body>
 </html>
