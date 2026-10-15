@@ -10,7 +10,12 @@ async function runRegression(){
   const oldConfirm=window.confirm;window.confirm=()=>false;await excluirObra(testWork);check(!obras.get(testWork).excluida,'cancel deletion');window.confirm=oldConfirm;
   await excluirObra(testWork);check(mock.rows.get('obras/'+testWork).excluida,'trash persisted');check(!document.getElementById('obrasGrid').textContent.includes('Obra editada'),'deleted work hidden');
   await restaurarObra(testWork);check(!mock.rows.get('obras/'+testWork).excluida,'restore persisted');
-  mock.rows.delete('obras/'+testWork);await loadCatalog();
+  await excluirObra(testWork);
+  mock.rows.set('rdos/trash-report',{obraId:testWork});mock.rows.set('rdos/trash-report/historico/h1',{texto:'Histórico'});mock.rows.set('rdos/trash-report/presenca/p1',{nome:'Pessoa'});
+  window.confirm=()=>false;await limparLixeiraObras();check(mock.rows.has('obras/'+testWork),'cancel permanent cleanup');window.confirm=oldConfirm;
+  mock.failSave=true;await limparLixeiraObras();mock.failSave=false;check(mock.rows.has('obras/'+testWork)&&mock.rows.has('rdos/trash-report'),'failed cleanup preserves work and reports');
+  await limparLixeiraObras();check(!mock.rows.has('obras/'+testWork)&&!mock.rows.has('rdos/trash-report'),'permanent cleanup removes work and reports');check(!mock.rows.has('rdos/trash-report/historico/h1')&&!mock.rows.has('rdos/trash-report/presenca/p1'),'cleanup removes report history and presence');check(mock.rows.has('obras/obra1')&&mock.rows.has('obras/obra2'),'active works preserved');
+  check(document.getElementById('obrasLixeira').hidden,'empty trash hidden');await loadCatalog();
   // This fixture reproduces the actual old data shape: no date and repeated quantities.
   const old=clone(blankData);old.campos.obra='Obra A';old.maoObra.direta.push({funcao:old.maoObra.direta[0].funcao,qtd:'7'});
   mock.rows.set('rdos/legacy',{obraId:'obra1',dados:old,versao:1});await loadCatalog();

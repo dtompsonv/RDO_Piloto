@@ -108,7 +108,7 @@ function renderHome(){
   const grid=document.getElementById('obrasGrid');grid.replaceChildren();
   for(const [id,o] of obras){if(o.excluida)continue;const card=document.createElement('div');card.className='obra-card';const h=document.createElement('h3');h.textContent=o.obra||'Sem nome';const p=document.createElement('p');p.textContent=o.local||'';const button=reportButton('Calendário / novo RDO',()=>abrirRDOObra(id));card.append(h,p,button,reportButton('Editar',()=>editarObra(id)),reportButton('Excluir',()=>excluirObra(id)));const saved=[...reports.entries()].filter(([,r])=>r.obraId===id&&validDate(reportDate(r))).sort((a,b)=>reportDate(b[1]).localeCompare(reportDate(a[1])));if(saved.length){card.append(pdfElement('p',saved.length+' RDO(s) salvo(s)'),reportButton('Abrir último RDO · '+formatBR(reportDate(saved[0][1])),()=>abrirRegistro(saved[0][0])));}grid.append(card);}
   if(![...obras.values()].some(o=>!o.excluida)){const p=document.createElement('p');p.textContent='Nenhuma obra cadastrada. Use Adicionar obra.';grid.append(p);}
-  let trash=document.getElementById('obrasLixeira');if(!trash){trash=document.createElement('details');trash.id='obrasLixeira';grid.after(trash);}trash.replaceChildren(pdfElement('summary','Lixeira de obras'));let trashCount=0;for(const [id,o] of obras)if(o.excluida){trashCount++;const row=pdfElement('p',o.obra||'Sem nome');row.append(reportButton('Restaurar',()=>restaurarObra(id)));trash.append(row);}trash.hidden=!trashCount;
+  let trash=document.getElementById('obrasLixeira');if(!trash){trash=document.createElement('details');trash.id='obrasLixeira';grid.after(trash);}trash.replaceChildren(pdfElement('summary','Lixeira de obras'));let trashCount=0;for(const [id,o] of obras)if(o.excluida){trashCount++;const row=pdfElement('p',o.obra||'Sem nome');row.append(reportButton('Restaurar',()=>restaurarObra(id)));trash.append(row);}if(trashCount){const clear=reportButton('Limpar lixeira',limparLixeiraObras);clear.id='limparLixeiraButton';clear.disabled=clearingTrash;trash.append(clear);}trash.hidden=!trashCount;
   const old=[...reports.entries()].filter(([,r])=>!obras.get(r.obraId)?.excluida&&(!validDate(reportDate(r))||!r.obraId||!obras.has(r.obraId))); 
   const list=document.getElementById('legacyList');list.replaceChildren();
   for(const [id,r] of old){const title=r.dados?.campos?.obra||obras.get(r.obraId)?.obra||'Obra não identificada';list.append(reportButton(title+' · '+(validDate(reportDate(r))?formatBR(reportDate(r)):'sem data')+' · registro '+id.slice(-6),()=>abrirRegistro(id)));}
@@ -233,10 +233,36 @@ async function salvarObra(){
   catch(e){notice('Não foi possível salvar a obra: '+e.message);}finally{obraSaving=false;button.disabled=false;}
 }
 async function setObraDeleted(id,deleted){
+  if(clearingTrash)return;
   const ref=db.collection('obras').doc(id);try{await db.runTransaction(async tx=>{const current=await tx.get(ref);if(!current.exists)throw Error('Obra não encontrada.');tx.update(ref,{excluida:deleted,modificadoEm:stamp()});});obras.set(id,{...obras.get(id),excluida:deleted});renderHome();notice(deleted?'Obra movida para a lixeira. Seus RDOs podem ser recuperados ao restaurá-la.':'Obra restaurada.');}catch(e){notice('Não foi possível alterar a obra: '+e.message);}
 }
 async function excluirObra(id){const obra=obras.get(id);if(!obra||obra.excluida)return;if(confirm('Mover a obra "'+obra.obra+'" para a lixeira? Seus RDOs ficarão ocultos e poderão ser recuperados ao restaurar a obra.'))await setObraDeleted(id,true);}
 async function restaurarObra(id){await setObraDeleted(id,false);}
+let clearingTrash=false;
+async function limparLixeiraObras(){
+  if(clearingTrash)return;
+  const ids=[...obras].filter(([,o])=>o.excluida).map(([id])=>id);if(!ids.length)return;
+  if(!confirm('Excluir definitivamente '+ids.length+' obra(s) da lixeira e todos os seus RDOs, fotos e assinaturas? Esta ação não pode ser desfeita. Obras fora da lixeira serão mantidas.'))return;
+  clearingTrash=true;renderHome();let removed=0;
+  try{
+    for(const id of ids){
+      const workRef=db.collection('obras').doc(id);
+      const workBefore=await workRef.get();if(!workBefore.exists||!workBefore.data().excluida)continue;
+      const saved=await db.collection('rdos').where('obraId','==',id).get();
+      const refs=[];for(const report of saved.docs){for(const name of ['historico','presenca']){const children=await report.ref.collection(name).get();for(const child of children.docs)refs.push(child.ref);}refs.push(report.ref);}
+      if(refs.length>400)throw Error('Esta obra possui muitos registros para a limpeza segura de uma só vez. Nenhum registro desta obra foi excluído.');
+      await db.runTransaction(async tx=>{
+        const work=await tx.get(workRef);if(!work.exists||!work.data().excluida)throw Error('Uma obra foi restaurada durante a limpeza. Atualize a página e tente novamente.');
+        // Reading every target makes concurrent edits retry before any deletion.
+        for(const ref of refs)await tx.get(ref);
+        for(const ref of refs)tx.delete(ref);tx.delete(workRef);
+      });
+      obras.delete(id);for(const report of saved.docs)reports.delete(report.id);removed++;
+    }
+    await loadCatalog();notice('Lixeira limpa: '+removed+' obra(s) excluída(s) definitivamente.');
+  }catch(e){await loadCatalog().catch(()=>{});notice('Limpeza interrompida. '+removed+' obra(s) já excluída(s). '+e.message);}
+  finally{clearingTrash=false;renderHome();}
+}
 function safeImage(src){return typeof src==='string'&&/^data:image\/(png|jpeg|webp);base64,/i.test(src)?src:'';}
 function coletarMidia(){return {logo:document.getElementById('logoImg').getAttribute('src')===defaultLogo?'':safeImage(document.getElementById('logoImg').getAttribute('src')),fotos:[...document.querySelectorAll('#fotoGrid .foto-item')].map(el=>({src:safeImage(el.querySelector('img').getAttribute('src')),legenda:el.querySelector('input').value})),assinaturas:Object.fromEntries(Object.entries({exec:'assinExecImg',sup:'assinSupImg',fisc:'assinFiscImg'}).map(([key,id])=>[key,safeImage(document.getElementById(id).getAttribute('src'))]))};}
 function appendPhoto(src,legenda=''){

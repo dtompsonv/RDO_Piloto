@@ -34,7 +34,7 @@ function firebaseDouble(){
   const db={collection:p=>new Query(p),runTransaction:async fn=>{
     if(window.mock.failSave) throw Error('Falha simulada');
     const pending=[];
-    const result=await fn({get:ref=>ref.get(),set:(ref,data)=>pending.push(()=>rows.set(ref.path,copy(data))),update:(ref,data)=>pending.push(()=>rows.set(ref.path,{...rows.get(ref.path),...copy(data)}))});
+    const result=await fn({get:ref=>ref.get(),delete:ref=>pending.push(()=>rows.delete(ref.path)),set:(ref,data)=>pending.push(()=>rows.set(ref.path,copy(data))),update:(ref,data)=>pending.push(()=>rows.set(ref.path,{...rows.get(ref.path),...copy(data)}))});
     pending.forEach(fn=>fn()); notify(); return result;
   }};
   const auth={onAuthStateChanged:cb=>{authCallback=cb;queueMicrotask(()=>cb({uid:'tester',displayName:'Pessoa Teste'}));},signInWithPopup:async()=>{},signOut:async()=>authCallback(null)};

@@ -48,3 +48,5 @@ Para rodar no navegador sem instalar Chromium: `npm run test:serve`, depois abra
 
 ## Gerenciar obras
 Cada obra possui Editar e Excluir. Editar altera o cadastro e os próximos RDOs, preservando os relatórios já preenchidos. Excluir pede confirmação e move a obra e seus relatórios para a lixeira; Restaurar recupera o acesso. Obras na lixeira não aceitam novos RDOs.
+
+O botão Limpar lixeira pede confirmação e exclui definitivamente as obras que estão na lixeira, seus RDOs e os históricos/presenças vinculados. Obras ativas são preservadas. A limpeza é atômica por obra; se houver falha, a mensagem informa quantas obras já foram removidas. Por segurança, obras com mais de 400 documentos vinculados exigem limpeza administrativa.
