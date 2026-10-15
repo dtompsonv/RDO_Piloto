@@ -1,0 +1,15 @@
+{
+  "name":"rdo-piloto",
+  "private":true,
+  "scripts":{
+    "test":"node tests/browser.cjs",
+    "test:serve":"node tests/serve.cjs",
+    "test:rules":"firebase emulators:exec --project demo-rdo-piloto --only firestore,storage \"node --test tests/rules.cjs\""
+  },
+  "devDependencies":{
+    "playwright":"^1.51.0",
+    "firebase":"^11.0.0",
+    "@firebase/rules-unit-testing":"^4.0.0",
+    "firebase-tools":"^14.0.0"
+  }
+}

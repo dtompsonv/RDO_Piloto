@@ -1,0 +1,6 @@
+{
+  "indexes": [
+    {"collectionGroup":"rdos","queryScope":"COLLECTION","fields":[{"fieldPath":"obraId","order":"ASCENDING"},{"fieldPath":"dados.campos.dataRelatorio","order":"ASCENDING"}]}
+  ],
+  "fieldOverrides": []
+}

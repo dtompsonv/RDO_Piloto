@@ -1,0 +1,14 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /obras/{obraId}/rdos/{rdoId}/{file} {
+      function project() { return firestore.get(/databases/(default)/documents/obras/$(obraId)).data; }
+      allow read: if request.auth != null && request.auth.uid in project().membros;
+      allow create: if request.auth != null && request.auth.uid in project().editores
+        && request.resource.size <= 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/(png|jpeg|webp|gif)');
+      // Images are immutable so older revisions keep their original attachments.
+      allow update, delete: if false;
+    }
+  }
+}
