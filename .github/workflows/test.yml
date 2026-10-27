@@ -1,0 +1,21 @@
+name: RDO mínimo - regressão e PDF
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --ignore-scripts
+      - run: npx playwright install --with-deps chromium
+      - run: npm test
+      - run: sudo apt-get update && sudo apt-get install -y poppler-utils
+      - run: pdftoppm -scale-to 1400 -png test-results/rdo-minimo-teste.pdf test-results/pagina
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rdo-minimo-pdf
+          path: test-results/
