@@ -53,6 +53,21 @@ async function runRegression(){
   check(document.querySelector('#listaComentarios input[type=datetime-local]').value==='2026-07-01T08:15','comment date preserved');
   check(document.querySelector('#listaOcorrencias input[type=datetime-local]').value==='2026-07-01T09:20','occurrence date preserved');
   check(fotoGrid.children.length===1&&document.getElementById('assinExecImg').getAttribute('src')===signature,'photos and signatures round trip');
+  for(const [key,id] of Object.entries({exec:'assinExecImg',sup:'assinSupImg',fisc:'assinFiscImg'})){
+    check(!document.getElementById(id+'Excluir').hidden,'signature delete button visible after reopen');
+    const previousName=document.getElementById(key+'Nome').value;
+    document.getElementById(id+'Excluir').click();
+    check(!document.getElementById(id).hasAttribute('src')&&document.getElementById(id+'Excluir').hidden,'signature image and delete button removed');
+    check(document.getElementById(key+'Nome').value===previousName,'signature name preserved');
+    check(coletarDados().midia.assinaturas[key]==='','removed signature excluded from serialized data');
+    await salvarNoFirebase();await abrirDia('2026-07-02');await abrirDia('2026-07-01');
+    check(!document.getElementById(id).hasAttribute('src')&&document.getElementById(id+'Excluir').hidden,'signature deletion persists after reopen');
+    check(buildPDF().querySelectorAll('.pdf-signature img').length===2,'PDF excludes only deleted signature');
+    const file=new File([Uint8Array.from(atob(signature.split(',')[1]),c=>c.charCodeAt(0))],'assinatura.png',{type:'image/png'});
+    await carregarAssinatura({files:[file],value:''},id);
+    check(!document.getElementById(id+'Excluir').hidden&&!!document.getElementById(id).getAttribute('src'),'signature can be added again');
+    await salvarNoFirebase();
+  }
   // Whole month: 31 separately addressable documents, no duplicate creation on reopen.
   for(let day=1;day<=31;day++){
     const date=calDataISO(2026,9,day);await abrirDia(date,'obra1');

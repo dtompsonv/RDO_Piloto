@@ -943,6 +943,7 @@
         </div>
         <input type="file" id="assinExecInput" accept="image/*" style="display:none;" onchange="carregarAssinatura(this, 'assinExecImg')">
         <img id="assinExecImg" style="display:none; max-height:60px; max-width:100%; margin:0 auto 6px; border:1px solid var(--line); border-radius:3px;">
+        <button type="button" class="btn btn-ghost" id="assinExecImgExcluir" hidden onclick="excluirAssinatura('assinExecImg')" aria-label="Excluir imagem da assinatura — responsável técnico">Excluir imagem</button>
         <div class="assin-line">Assinatura</div>
       </div>
       <div class="assin-col">
@@ -957,6 +958,7 @@
         </div>
         <input type="file" id="assinSupInput" accept="image/*" style="display:none;" onchange="carregarAssinatura(this, 'assinSupImg')">
         <img id="assinSupImg" style="display:none; max-height:60px; max-width:100%; margin:0 auto 6px; border:1px solid var(--line); border-radius:3px;">
+        <button type="button" class="btn btn-ghost" id="assinSupImgExcluir" hidden onclick="excluirAssinatura('assinSupImg')" aria-label="Excluir imagem da assinatura — supervisora">Excluir imagem</button>
         <div class="assin-line">Assinatura</div>
       </div>
       <div class="assin-col">
@@ -971,6 +973,7 @@
         </div>
         <input type="file" id="assinFiscInput" accept="image/*" style="display:none;" onchange="carregarAssinatura(this, 'assinFiscImg')">
         <img id="assinFiscImg" style="display:none; max-height:60px; max-width:100%; margin:0 auto 6px; border:1px solid var(--line); border-radius:3px;">
+        <button type="button" class="btn btn-ghost" id="assinFiscImgExcluir" hidden onclick="excluirAssinatura('assinFiscImg')" aria-label="Excluir imagem da assinatura — fiscal">Excluir imagem</button>
         <div class="assin-line">Assinatura</div>
       </div>
     </div>

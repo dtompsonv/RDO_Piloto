@@ -270,7 +270,7 @@ function appendPhoto(src,legenda=''){
   const input=document.createElement('input');input.type='text';input.placeholder='Legenda';input.value=legenda;
   const button=document.createElement('button');button.className='del-btn';button.textContent='✕';button.setAttribute('aria-label','Remover foto');button.onclick=()=>{div.remove();atualizarFotoBadge();};div.append(img,input,button);fotoGrid.append(div);
 }
-function aplicarMidia(midia){fotoGrid.replaceChildren();for(const photo of midia?.fotos||[])if(safeImage(photo.src))appendPhoto(photo.src,photo.legenda);document.getElementById('logoImg').src=safeImage(midia?.logo)||defaultLogo;document.getElementById('logoImg').style.display='block';document.getElementById('logoPlaceholder').style.display='none';for(const [key,id] of Object.entries({exec:'assinExecImg',sup:'assinSupImg',fisc:'assinFiscImg'})){const el=document.getElementById(id),src=safeImage(midia?.assinaturas?.[key]);if(src)el.src=src;else el.removeAttribute('src');el.style.display=src?'block':'none';}}
+function aplicarMidia(midia){fotoGrid.replaceChildren();for(const photo of midia?.fotos||[])if(safeImage(photo.src))appendPhoto(photo.src,photo.legenda);document.getElementById('logoImg').src=safeImage(midia?.logo)||defaultLogo;document.getElementById('logoImg').style.display='block';document.getElementById('logoPlaceholder').style.display='none';for(const [key,id] of Object.entries({exec:'assinExecImg',sup:'assinSupImg',fisc:'assinFiscImg'})){const el=document.getElementById(id),src=safeImage(midia?.assinaturas?.[key]);if(src)el.src=src;else el.removeAttribute('src');el.style.display=src?'block':'none';document.getElementById(id+'Excluir').hidden=!src;}}
 async function readImage(file){
   if(!['image/jpeg','image/png','image/webp'].includes(file.type)||file.size>10*1024*1024)throw Error('Use PNG, JPEG ou WebP com até 10 MB por arquivo.');
   mediaReads++;try{
@@ -282,7 +282,14 @@ async function readImage(file){
   }finally{mediaReads--;}
 }
 async function handleFotos(files){const key=activeDraftKey;try{for(const file of files){if(fotoGrid.children.length>=6)throw Error('Limite de 6 fotos por RDO.');const src=await readImage(file);if(key!==activeDraftKey)return;appendPhoto(src);atualizarFotoBadge();}}catch(e){notice(e.message);}finally{fotoInput.value='';}}
-async function carregarAssinatura(input,imgId){const file=input.files[0],key=activeDraftKey;if(!file)return;try{const src=await readImage(file);if(key!==activeDraftKey)return;const img=document.getElementById(imgId);img.src=src;img.style.display='block';changed();}catch(e){notice(e.message);}finally{input.value='';}}
+async function carregarAssinatura(input,imgId){const file=input.files[0],key=activeDraftKey;if(!file)return;try{const src=await readImage(file);if(key!==activeDraftKey)return;const img=document.getElementById(imgId);img.src=src;img.style.display='block';document.getElementById(imgId+'Excluir').hidden=false;changed();}catch(e){notice(e.message);}finally{input.value='';}}
+function excluirAssinatura(imgId){
+  const inputs={assinExecImg:'assinExecInput',assinSupImg:'assinSupInput',assinFiscImg:'assinFiscInput'};
+  if(!inputs[imgId])return;
+  const img=document.getElementById(imgId);img.removeAttribute('src');img.style.display='none';
+  document.getElementById(inputs[imgId]).value='';document.getElementById(imgId+'Excluir').hidden=true;
+  changed();notice('Imagem da assinatura removida. Clique em Salvar RDO para gravar a alteração.');
+}
 document.getElementById('logoInput').addEventListener('change',async e=>{const file=e.target.files[0],key=activeDraftKey;if(!file)return;try{const src=await readImage(file);if(key===activeDraftKey){document.getElementById('logoImg').src=src;changed();}}catch(e){notice(e.message);}finally{e.target.value='';}});
 document.getElementById('dataRelatorio').addEventListener('change',e=>{const next=e.target.value;e.target.value=activeDate||'';if(!activeDate){document.getElementById('recoveryDate').value=next;notice('Clique em Vincular e salvar RDO para associar o registro antigo à data.');}else if(next!==activeDate)abrirDia(next);});
 document.getElementById('novaDataInicio').addEventListener('change',calcularPrazoAuto);document.getElementById('novaDataFim').addEventListener('change',calcularPrazoAuto);
