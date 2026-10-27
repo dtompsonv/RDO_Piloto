@@ -662,6 +662,16 @@
     section{break-inside:avoid;}
     input, textarea, select{border-color:#999 !important;}
   }
+.assin-heading{display:flex;align-items:center;gap:6px;margin:10px 0;font-size:12px;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;}
+.assin-menu{position:relative;}
+.assin-menu summary{display:grid;place-items:center;width:26px;height:26px;border:0;border-radius:3px;cursor:pointer;font:22px Arial;color:var(--accent);list-style:none;}
+.assin-menu summary::-webkit-details-marker{display:none;}
+.assin-menu summary:hover,.assin-menu[open] summary{background:var(--accent-soft);}
+.assin-menu summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+.assin-menu-options{position:absolute;top:30px;left:0;z-index:20;min-width:125px;padding:4px;background:white;border:1px solid var(--line);border-radius:4px;box-shadow:0 3px 10px #0002;}
+.assin-menu-options button{display:block;width:100%;padding:8px 12px;text-align:left;border:0;background:white;font:13px var(--sans);color:var(--ink);cursor:pointer;}
+.assin-menu-options button:hover:not(:disabled){background:var(--accent-soft);}
+.assin-menu-options button:disabled{opacity:.45;cursor:default;}
 [hidden]{display:none !important;}
 .saved-reports{padding:14px;border-top:1px solid var(--line);max-height:300px;overflow:auto;}
 .saved-reports h3{font-size:13px;margin:0 0 10px;}
@@ -937,13 +947,17 @@
         </div>
         <input type="text" placeholder="Nome — Resp. Técnico" id="execNome">
         <input type="email" placeholder="E-mail" id="execEmail">
-        <label style="margin-top:8px;">Assinatura (imagem ou desenho)</label>
-        <div class="assin-upload" onclick="document.getElementById('assinExecInput').click()" style="border:1.5px dashed var(--line); border-radius:4px; padding:14px; text-align:center; cursor:pointer; color:#5a6b7a; font-size:12px; margin-bottom:8px;">
-          ➕ Clique para adicionar imagem
+        <div class="assin-heading"><span>Assinatura</span>
+          <details class="assin-menu" id="assinExecImgMenu">
+            <summary aria-label="Opções da assinatura — responsável técnico">+</summary>
+            <div class="assin-menu-options">
+              <button type="button" id="assinExecImgAdicionar" onclick="adicionarAssinatura('assinExecImg')">Adicionar</button>
+              <button type="button" id="assinExecImgExcluir" hidden onclick="excluirAssinatura('assinExecImg')">Excluir</button>
+            </div>
+          </details>
         </div>
-        <input type="file" id="assinExecInput" accept="image/*" style="display:none;" onchange="carregarAssinatura(this, 'assinExecImg')">
-        <img id="assinExecImg" style="display:none; max-height:60px; max-width:100%; margin:0 auto 6px; border:1px solid var(--line); border-radius:3px;">
-        <button type="button" class="btn btn-ghost" id="assinExecImgExcluir" hidden onclick="excluirAssinatura('assinExecImg')" aria-label="Excluir imagem da assinatura — responsável técnico">Excluir imagem</button>
+        <input type="file" id="assinExecInput" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="carregarAssinatura(this, 'assinExecImg')">
+        <img id="assinExecImg" alt="Assinatura — responsável técnico" style="display:none; max-height:60px; max-width:100%; margin:0 auto 6px; border:1px solid var(--line); border-radius:3px;">
         <div class="assin-line">Assinatura</div>
       </div>
       <div class="assin-col">
@@ -952,13 +966,17 @@
         </div>
         <input type="text" placeholder="Nome — Eng. Civil" id="supNome">
         <input type="email" placeholder="E-mail" id="supEmail">
-        <label style="margin-top:8px;">Assinatura (imagem ou desenho)</label>
-        <div class="assin-upload" onclick="document.getElementById('assinSupInput').click()" style="border:1.5px dashed var(--line); border-radius:4px; padding:14px; text-align:center; cursor:pointer; color:#5a6b7a; font-size:12px; margin-bottom:8px;">
-          ➕ Clique para adicionar imagem
+        <div class="assin-heading"><span>Assinatura</span>
+          <details class="assin-menu" id="assinSupImgMenu">
+            <summary aria-label="Opções da assinatura — supervisora">+</summary>
+            <div class="assin-menu-options">
+              <button type="button" id="assinSupImgAdicionar" onclick="adicionarAssinatura('assinSupImg')">Adicionar</button>
+              <button type="button" id="assinSupImgExcluir" hidden onclick="excluirAssinatura('assinSupImg')">Excluir</button>
+            </div>
+          </details>
         </div>
-        <input type="file" id="assinSupInput" accept="image/*" style="display:none;" onchange="carregarAssinatura(this, 'assinSupImg')">
-        <img id="assinSupImg" style="display:none; max-height:60px; max-width:100%; margin:0 auto 6px; border:1px solid var(--line); border-radius:3px;">
-        <button type="button" class="btn btn-ghost" id="assinSupImgExcluir" hidden onclick="excluirAssinatura('assinSupImg')" aria-label="Excluir imagem da assinatura — supervisora">Excluir imagem</button>
+        <input type="file" id="assinSupInput" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="carregarAssinatura(this, 'assinSupImg')">
+        <img id="assinSupImg" alt="Assinatura — supervisora" style="display:none; max-height:60px; max-width:100%; margin:0 auto 6px; border:1px solid var(--line); border-radius:3px;">
         <div class="assin-line">Assinatura</div>
       </div>
       <div class="assin-col">
@@ -967,13 +985,17 @@
         </div>
         <input type="text" placeholder="Nome — Eng. Fiscal DER" id="fiscNome">
         <input type="email" placeholder="E-mail" id="fiscEmail">
-        <label style="margin-top:8px;">Assinatura (imagem ou desenho)</label>
-        <div class="assin-upload" onclick="document.getElementById('assinFiscInput').click()" style="border:1.5px dashed var(--line); border-radius:4px; padding:14px; text-align:center; cursor:pointer; color:#5a6b7a; font-size:12px; margin-bottom:8px;">
-          ➕ Clique para adicionar imagem
+        <div class="assin-heading"><span>Assinatura</span>
+          <details class="assin-menu" id="assinFiscImgMenu">
+            <summary aria-label="Opções da assinatura — fiscal">+</summary>
+            <div class="assin-menu-options">
+              <button type="button" id="assinFiscImgAdicionar" onclick="adicionarAssinatura('assinFiscImg')">Adicionar</button>
+              <button type="button" id="assinFiscImgExcluir" hidden onclick="excluirAssinatura('assinFiscImg')">Excluir</button>
+            </div>
+          </details>
         </div>
-        <input type="file" id="assinFiscInput" accept="image/*" style="display:none;" onchange="carregarAssinatura(this, 'assinFiscImg')">
-        <img id="assinFiscImg" style="display:none; max-height:60px; max-width:100%; margin:0 auto 6px; border:1px solid var(--line); border-radius:3px;">
-        <button type="button" class="btn btn-ghost" id="assinFiscImgExcluir" hidden onclick="excluirAssinatura('assinFiscImg')" aria-label="Excluir imagem da assinatura — fiscal">Excluir imagem</button>
+        <input type="file" id="assinFiscInput" accept="image/png,image/jpeg,image/webp" style="display:none;" onchange="carregarAssinatura(this, 'assinFiscImg')">
+        <img id="assinFiscImg" alt="Assinatura — fiscal" style="display:none; max-height:60px; max-width:100%; margin:0 auto 6px; border:1px solid var(--line); border-radius:3px;">
         <div class="assin-line">Assinatura</div>
       </div>
     </div>

@@ -55,17 +55,26 @@ async function runRegression(){
   check(fotoGrid.children.length===1&&document.getElementById('assinExecImg').getAttribute('src')===signature,'photos and signatures round trip');
   for(const [key,id] of Object.entries({exec:'assinExecImg',sup:'assinSupImg',fisc:'assinFiscImg'})){
     check(!document.getElementById(id+'Excluir').hidden,'signature delete button visible after reopen');
+    check(document.getElementById(id+'Adicionar').disabled,'one signature disables add');
+    document.querySelector('#'+id+'Menu summary').click();check(document.getElementById(id+'Menu').open,'plus opens signature menu');
+    document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape'}));check(!document.getElementById(id+'Menu').open,'escape closes signature menu');
+    document.querySelector('#'+id+'Menu summary').click();
     const previousName=document.getElementById(key+'Nome').value;
     document.getElementById(id+'Excluir').click();
     check(!document.getElementById(id).hasAttribute('src')&&document.getElementById(id+'Excluir').hidden,'signature image and delete button removed');
     check(document.getElementById(key+'Nome').value===previousName,'signature name preserved');
     check(coletarDados().midia.assinaturas[key]==='','removed signature excluded from serialized data');
+    check(!document.getElementById(id+'Adicionar').disabled&&!document.getElementById(id+'Menu').open,'deleting closes menu and re-enables add');
     await salvarNoFirebase();await abrirDia('2026-07-02');await abrirDia('2026-07-01');
     check(!document.getElementById(id).hasAttribute('src')&&document.getElementById(id+'Excluir').hidden,'signature deletion persists after reopen');
     check(buildPDF().querySelectorAll('.pdf-signature img').length===2,'PDF excludes only deleted signature');
     const file=new File([Uint8Array.from(atob(signature.split(',')[1]),c=>c.charCodeAt(0))],'assinatura.png',{type:'image/png'});
     await carregarAssinatura({files:[file],value:''},id);
     check(!document.getElementById(id+'Excluir').hidden&&!!document.getElementById(id).getAttribute('src'),'signature can be added again');
+    const currentSignature=document.getElementById(id).getAttribute('src');
+    await carregarAssinatura({files:[file],value:''},id);
+    check(document.getElementById(id).getAttribute('src')===currentSignature,'second signature cannot overwrite current image');
+    check(document.getElementById(id+'Adicionar').disabled,'adding one signature disables adding more');
     await salvarNoFirebase();
   }
   // Whole month: 31 separately addressable documents, no duplicate creation on reopen.
