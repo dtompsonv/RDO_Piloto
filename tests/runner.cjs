@@ -8,6 +8,9 @@ const server=require('./server.cjs');
     await page.waitForFunction(()=>!!window.regressionResult,{},{timeout:120000});const result=await page.evaluate(()=>window.regressionResult);assert.equal(result.status,'pass',result.message);assert.deepEqual(errors,[]);
     const out=path.resolve(__dirname,'../test-results');fs.mkdirSync(out,{recursive:true});
     await page.emulateMedia({media:'print'});await page.pdf({path:path.join(out,'rdo-minimo-teste.pdf'),format:'A4',printBackground:true,preferCSSPageSize:true});
+    await page.evaluate(async()=>{exportarPDF();document.querySelector('input[name="pdfMode"][value="range"]').checked=true;document.getElementById('pdfMonth').value='2026-10';mudarMesPDF();document.getElementById('pdfStart').value='2026-10-05';document.getElementById('pdfEnd').value='2026-10-15';atualizarOpcoesPDF();await gerarPDFSelecionado();});
+    assert.equal(await page.locator('#pdfReport .pdf-daily').count(),11);
+    await page.pdf({path:path.join(out,'rdo-periodo-teste.pdf'),format:'A4',printBackground:true,preferCSSPageSize:true});
     // A fresh page/JS context restores the same saved records, without changing the number of cards.
     const state=await page.evaluate(()=>[...mock.rows.entries()].map(([key,value])=>[key,JSON.parse(JSON.stringify(value))]));
     await page.route('**/tests/mock.js',route=>route.fulfill({contentType:'text/javascript',body:fs.readFileSync(path.join(__dirname,'mock.js'),'utf8')+'\nmock.rows.clear();for(const [key,value] of '+JSON.stringify(state)+')mock.rows.set(key,value);'}));

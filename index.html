@@ -672,6 +672,8 @@
 .assin-menu-options button{display:block;width:100%;padding:8px 12px;text-align:left;border:0;background:white;font:13px var(--sans);color:var(--ink);cursor:pointer;}
 .assin-menu-options button:hover:not(:disabled){background:var(--accent-soft);}
 .assin-menu-options button:disabled{opacity:.45;cursor:default;}
+.pdf-options{max-width:460px;width:calc(100% - 40px);padding:24px;border:1px solid var(--line);border-radius:6px;color:var(--ink);background:var(--paper);}
+.pdf-options::backdrop{background:#0007;}.pdf-options h2{margin:0 0 18px;font-size:18px;}.pdf-options .pdf-choice{display:flex;align-items:center;gap:8px;margin:12px 0;}.pdf-options input[type=radio]{width:auto;margin:0;}.pdf-options fieldset{border:1px solid var(--line);padding:12px;margin:14px 0;}.pdf-options label{display:block;margin:8px 0;}.pdf-options .pdf-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;}.pdf-options p{font-size:12px;line-height:1.5;}.pdf-options [role=alert]{color:var(--danger);}
 [hidden]{display:none !important;}
 .saved-reports{padding:14px;border-top:1px solid var(--line);max-height:300px;overflow:auto;}
 .saved-reports h3{font-size:13px;margin:0 0 10px;}
@@ -689,7 +691,8 @@
  #pdfReport h1{font-size:17pt;margin:0 0 4mm;color:#1f4e79;}
  #pdfReport h2{font-size:11pt;border-bottom:1px solid #a9b8c6;color:#1f4e79;padding-bottom:2mm;margin:6mm 0 3mm;break-after:avoid;}
  #pdfReport p{margin:1.5mm 0;white-space:pre-wrap;overflow-wrap:anywhere;}
- #pdfReport section{padding:0;border:0;break-inside:auto;}
+ #pdfReport .pdf-daily+.pdf-daily{break-before:page;}
+  #pdfReport section{padding:0;border:0;break-inside:auto;}
  #pdfReport table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:9pt;}
  #pdfReport th,#pdfReport td{border:1px solid #bec7cf;padding:2mm;white-space:pre-wrap;overflow-wrap:anywhere;text-transform:none;letter-spacing:normal;}
  #pdfReport thead{display:table-header-group;}#pdfReport tr{break-inside:avoid;}
@@ -1308,6 +1311,20 @@ function coletarDados(){
 
 
 </script>
+<dialog id="pdfOptions" class="pdf-options" aria-labelledby="pdfOptionsTitle">
+  <h2 id="pdfOptionsTitle">Salvar em PDF</h2>
+  <label class="pdf-choice"><input type="radio" name="pdfMode" value="day" checked onchange="atualizarOpcoesPDF()"> Apenas o dia aberto <span id="pdfCurrentDate"></span></label>
+  <label class="pdf-choice"><input type="radio" name="pdfMode" value="range" onchange="atualizarOpcoesPDF()"> Período dentro do mês</label>
+  <fieldset id="pdfRangeFields" disabled hidden>
+    <label>Mês <input type="month" id="pdfMonth" onchange="mudarMesPDF()"></label>
+    <label>De <input type="date" id="pdfStart" onchange="atualizarResumoPDF()"></label>
+    <label>Até <input type="date" id="pdfEnd" onchange="atualizarResumoPDF()"></label>
+    <p id="pdfRangeSummary" aria-live="polite"></p>
+  </fieldset>
+  <p>O dia aberto usa os dados exibidos, incluindo alterações ainda não salvas. Os demais dias usam os RDOs salvos da mesma obra.</p>
+  <p id="pdfError" role="alert" hidden></p>
+  <div class="pdf-actions"><button type="button" class="btn btn-ghost" id="pdfCancel" onclick="fecharOpcoesPDF()">Cancelar</button><button type="button" class="btn btn-primary" id="pdfGenerate" onclick="gerarPDFSelecionado()">Gerar PDF</button></div>
+</dialog>
 <div id="pdfReport" aria-hidden="true"></div>
 <script src="app.js"></script>
 </body>

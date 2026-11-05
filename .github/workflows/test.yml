@@ -15,6 +15,7 @@ jobs:
       - run: npm test
       - run: sudo apt-get update && sudo apt-get install -y poppler-utils
       - run: pdftoppm -scale-to 1400 -png test-results/rdo-minimo-teste.pdf test-results/pagina
+      - run: node tests/verify-pdf.cjs
       - uses: actions/upload-artifact@v4
         with:
           name: rdo-minimo-pdf

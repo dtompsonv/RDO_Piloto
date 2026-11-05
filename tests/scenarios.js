@@ -101,10 +101,29 @@ async function runRegression(){
   check(conflict&&document.getElementById('local').value==='Minha edição','conflict preserves editor data');
   check(mock.rows.get('rdos/'+docId).dados.campos.local==='Edição de outra pessoa','conflict does not overwrite server');
   await localOp('delete',activeDraftKey);baseForm=clone(coletarDados());await abrirDia('2026-07-01');
+  // Export ranges are read-only, chronological, inclusive and isolated to this work.
+  window.printCalls=0;window.print=()=>{window.printCalls++;};
+  async function rangePDF(month,start,end){exportarPDF();document.querySelector('input[name="pdfMode"][value="range"]').checked=true;document.getElementById('pdfMonth').value=month;mudarMesPDF();document.getElementById('pdfStart').value=start;document.getElementById('pdfEnd').value=end;atualizarOpcoesPDF();await gerarPDFSelecionado();}
+  const editorBefore=stable(coletarDados()),serverBefore=stable([...mock.rows.entries()]);
+  mock.rows.set('rdos/other-work-pdf',{obraId:'obra2',dataRelatorio:'2026-10-07',dados:{campos:{dataRelatorio:'2026-10-07',obra:'DO NOT EXPORT'}}});
+  for(const [start,end] of [['2026-10-05','2026-10-15'],['2026-10-10','2026-10-20']]){
+    await rangePDF('2026-10',start,end);const days=[...document.querySelectorAll('#pdfReport .pdf-daily')].map(el=>el.dataset.date);
+    check(days.length===11&&days[0]===start&&days[10]===end,'inclusive range sorted chronologically');
+    check(!document.getElementById('pdfReport').textContent.includes('DO NOT EXPORT'),'other work excluded');
+  }
+  mock.rows.delete('rdos/other-work-pdf');check(stable([...mock.rows.entries()])===serverBefore&&stable(coletarDados())===editorBefore,'range export never writes reports or changes editor');
+  const printCount=window.printCalls;await rangePDF('2026-10','2026-10-20','2026-10-10');check(window.printCalls===printCount&&!document.getElementById('pdfError').hidden,'reversed range rejected');fecharOpcoesPDF();
+  await rangePDF('2026-10','2026-10-28','2026-11-02');check(window.printCalls===printCount&&!document.getElementById('pdfError').hidden,'cross-month range rejected');fecharOpcoesPDF();
+  await rangePDF('2026-09','2026-09-05','2026-09-15');check(window.printCalls===printCount&&!document.getElementById('pdfError').hidden,'empty period rejected');fecharOpcoesPDF();
+  const missingKey=[...mock.rows].find(([key,data])=>key.startsWith('rdos/')&&data.obraId==='obra1'&&data.dados?.campos?.dataRelatorio==='2026-10-07')[0],missingReport=mock.rows.get(missingKey);mock.rows.delete(missingKey);
+  const confirmBefore=window.confirm;let missingMessage='';window.confirm=message=>{missingMessage=message;return false;};
+  await rangePDF('2026-10','2026-10-05','2026-10-15');check(window.printCalls===printCount&&missingMessage.includes('07/10/2026'),'fresh server read warns about missing day before printing');fecharOpcoesPDF();
+  window.confirm=()=>true;await rangePDF('2026-10','2026-10-05','2026-10-15');check(document.querySelectorAll('#pdfReport .pdf-daily').length===10,'missing day skipped without creating blank report');window.confirm=confirmBefore;mock.rows.set(missingKey,missingReport);
+  await rangePDF('2026-07','2026-07-01','2026-07-01');check(document.querySelectorAll('#pdfReport .pdf-daily').length===1&&document.getElementById('pdfReport').textContent.includes(coletarDados().campos.obra),'range includes open day data');
   // HTML-like content stays text, and the PDF gets complete, expanded values.
   addComentario('Autor','</textarea><img src=x onerror=alert(1)>','2026-07-01T12:00');
   check(document.querySelectorAll('#listaComentarios img').length===0,'comments cannot inject markup');
-  window.printCalls=0;window.print=()=>{window.printCalls++;};await exportarPDF();
+  window.printCalls=0;window.print=()=>{window.printCalls++;};await exportarPDF();check(document.getElementById('pdfOptions').open&&window.printCalls===0,'PDF button opens options before printing');await gerarPDFSelecionado();
   const pdf=document.getElementById('pdfReport');
   check(window.printCalls===1,'PDF command opens print flow');check(pdf.textContent.includes('FIM_COMENTARIO_TESTE'),'PDF retains complete long text');
   check(pdf.textContent.includes('ATIVIDADE_TESTE')&&pdf.textContent.includes('Praticável'),'PDF includes activities and weather');

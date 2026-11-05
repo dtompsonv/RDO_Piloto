@@ -50,3 +50,6 @@ Para rodar no navegador sem instalar Chromium: `npm run test:serve`, depois abra
 Cada obra possui Editar e Excluir. Editar altera o cadastro e os próximos RDOs, preservando os relatórios já preenchidos. Excluir pede confirmação e move a obra e seus relatórios para a lixeira; Restaurar recupera o acesso. Obras na lixeira não aceitam novos RDOs.
 
 O botão Limpar lixeira pede confirmação e exclui definitivamente as obras que estão na lixeira, seus RDOs e os históricos/presenças vinculados. Obras ativas são preservadas. A limpeza é atômica por obra; se houver falha, a mensagem informa quantas obras já foram removidas. Por segurança, obras com mais de 400 documentos vinculados exigem limpeza administrativa.
+
+## PDF por período
+Salvar em PDF abre a escolha entre o dia aberto e um intervalo inclusivo dentro de um mês. Os RDOs da mesma obra são ordenados por data, cada um começando em uma nova página. Dias sem RDO são informados antes da impressão e não geram relatórios em branco. O dia aberto utiliza os dados exibidos, incluindo alterações pendentes; outros dias usam dados recém-consultados no servidor. Exportar não grava nem altera RDOs. No diálogo de impressão do navegador, escolha Salvar como PDF.

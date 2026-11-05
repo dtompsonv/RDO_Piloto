@@ -319,8 +319,8 @@ window.addEventListener('pagehide',()=>{persistDraft().catch(()=>{});});
 // Printing uses text blocks rather than clipped input/textarea widgets.
 function pdfElement(tag,text,className){const el=document.createElement(tag);if(text!==undefined)el.textContent=String(text);if(className)el.className=className;return el;}
 function pdfTable(headers,rows){const table=document.createElement('table'),head=document.createElement('thead'),tr=document.createElement('tr');for(const h of headers)tr.append(pdfElement('th',h));head.append(tr);table.append(head);const body=document.createElement('tbody');for(const row of rows){const tr=document.createElement('tr');for(const value of row)tr.append(pdfElement('td',value??''));body.append(tr);}table.append(body);return table;}
-function buildPDF(data=coletarDados()){
-  const root=document.getElementById('pdfReport');root.replaceChildren();root.setAttribute('aria-hidden','false');
+function buildPDF(data=coletarDados(),root=document.getElementById('pdfReport')){
+  root.replaceChildren();root.setAttribute('aria-hidden','false');
   const fields=data.campos,logo=pdfElement('img',undefined,'pdf-logo');logo.src=safeImage(data.midia.logo)||defaultLogo;root.append(logo,pdfElement('h1','Relatório Diário de Obra'),pdfElement('p','Data: '+(fields.dataRelatorio?formatBR(fields.dataRelatorio):'Não informada')));
   function section(title){const s=document.createElement('section');s.append(pdfElement('h2',title));root.append(s);return s;}
   const general=section('Dados da obra');for(const [label,key] of [['Obra','obra'],['Trecho','local'],['Contratada','contratada'],['Supervisora','responsavel'],['Contrato da obra','contratoObra'],['Contrato de supervisão','contratoSup']])general.append(pdfElement('p',label+': '+(fields[key]||'—')));
@@ -334,12 +334,62 @@ function buildPDF(data=coletarDados()){
   const signatures=section('Assinaturas'),grid=pdfElement('div',undefined,'pdf-signatures');for(const [key,label] of [['exec','Responsável técnico — Construtora'],['sup','Engenheiro civil — Supervisora'],['fisc','Fiscal']]){const col=pdfElement('div',undefined,'pdf-signature');col.append(pdfElement('p',label));const src=data.midia.assinaturas[key];if(src){const img=document.createElement('img');img.src=src;img.alt='Assinatura';col.append(img);}else col.append(pdfElement('p','________________________________'));col.append(pdfElement('p',fields[key+'Nome']||'Nome não informado'),pdfElement('p',fields[key+'Email']||''));grid.append(col);}signatures.append(grid);
   root.append(pdfElement('p','Preenchido por: '+(fields.criadoPor||'—')+' · Exportado em '+new Date().toLocaleString('pt-BR')));return root;
 }
-async function exportarPDF(){
+let pdfGenerating=false;
+function pdfMode(){return document.querySelector('input[name="pdfMode"]:checked').value;}
+function fecharOpcoesPDF(){if(!pdfGenerating)document.getElementById('pdfOptions').close();}
+document.getElementById('pdfOptions').addEventListener('cancel',event=>{if(pdfGenerating)event.preventDefault();});
+function pdfMonthBounds(month){if(!/^\d{4}-\d{2}$/.test(month)||!validDate(month+'-01'))throw Error('Selecione um mês válido.');const [year,m]=month.split('-').map(Number);return [month+'-01',calDataISO(year,m-1,new Date(year,m,0).getDate())];}
+function mudarMesPDF(){
+  try{const [first,last]=pdfMonthBounds(document.getElementById('pdfMonth').value);for(const id of ['pdfStart','pdfEnd']){const el=document.getElementById(id);el.min=first;el.max=last;}document.getElementById('pdfStart').value=first;document.getElementById('pdfEnd').value=last;atualizarResumoPDF();}catch(e){document.getElementById('pdfRangeSummary').textContent=e.message;}
+}
+function intervaloPDF(){
+  const month=document.getElementById('pdfMonth').value,start=document.getElementById('pdfStart').value,end=document.getElementById('pdfEnd').value;pdfMonthBounds(month);
+  if(!validDate(start)||!validDate(end))throw Error('Informe a data inicial e a data final.');
+  if(start.slice(0,7)!==month||end.slice(0,7)!==month)throw Error('As duas datas devem estar dentro do mês selecionado.');
+  if(start>end)throw Error('A data inicial deve ser anterior ou igual à data final.');
+  if(!obraAtualId)throw Error('Vincule o RDO a uma obra antes de exportar um período.');return {start,end};
+}
+function atualizarOpcoesPDF(){const range=pdfMode()==='range';document.getElementById('pdfRangeFields').hidden=!range;document.getElementById('pdfRangeFields').disabled=!range;document.getElementById('pdfError').hidden=true;if(range)atualizarResumoPDF();}
+function datasDoPeriodo(start,end){const result=[];for(let day=Number(start.slice(8));day<=Number(end.slice(8));day++)result.push(start.slice(0,8)+String(day).padStart(2,'0'));return result;}
+function selecionarRDOsPDF(entries,start,end,current,workId,currentDate){
+  const byDate=new Map();for(const [id,r] of entries){const date=reportDate(r);if(r.obraId!==workId||!validDate(date)||date<start||date>end)continue;const previous=byDate.get(date);if(!previous||reportTime(r)>reportTime(previous.record)||(reportTime(r)===reportTime(previous.record)&&id>previous.id))byDate.set(date,{id,record:r,data:r.dados});}
+  if(current&&currentDate>=start&&currentDate<=end&&validDate(currentDate))byDate.set(currentDate,{id:docId,data:current});
+  const dates=datasDoPeriodo(start,end),selected=dates.filter(date=>byDate.has(date)).map(date=>({date,data:byDate.get(date).data}));return {selected,missing:dates.filter(date=>!byDate.has(date))};
+}
+function atualizarResumoPDF(){try{const {start,end}=intervaloPDF(),selection=selecionarRDOsPDF(reports,start,end,coletarDados(),obraAtualId,activeDate);document.getElementById('pdfRangeSummary').textContent=selection.selected.length+' RDO(s) disponível(is). '+(selection.missing.length?'Sem RDO: '+selection.missing.map(formatBR).join(', ')+'.':'Todos os dias do período possuem RDO.');}catch(e){document.getElementById('pdfRangeSummary').textContent=e.message;}}
+function exportarPDF(){
   if(mediaReads){notice('Aguarde o carregamento das imagens antes de gerar o PDF.');return;}
-  try{await persistDraft();}catch{notice('Rascunho local indisponível. O PDF será gerado com os dados atuais.');}
-  const root=buildPDF();await Promise.all([...root.querySelectorAll('img')].map(img=>img.decode().catch(()=>{})));
-  const previous=document.title;document.title='RDO - '+(document.getElementById('obra').value||'Obra')+' - '+(activeDate||'sem-data');
-  window.addEventListener('afterprint',()=>{document.title=previous;root.setAttribute('aria-hidden','true');},{once:true});window.print();
+  const date=validDate(activeDate)?activeDate:todayISO();document.querySelector('input[name="pdfMode"][value="day"]').checked=true;document.getElementById('pdfCurrentDate').textContent=validDate(activeDate)?'('+formatBR(activeDate)+')':'';
+  document.querySelector('input[name="pdfMode"][value="range"]').disabled=!obraAtualId;
+  document.getElementById('pdfMonth').value=date.slice(0,7);mudarMesPDF();document.getElementById('pdfStart').value=date;document.getElementById('pdfEnd').value=date;atualizarOpcoesPDF();document.getElementById('pdfOptions').showModal();
+}
+function dadosParaPDF(raw,date){
+  const data=clone(blankData);Object.assign(data,clone(raw||{}));data.campos={...blankData.campos,...raw?.campos,dataRelatorio:date};data.clima=raw?.clima||{};
+  data.maoObra={};for(const group of ['direta','construtora','indireta'])data.maoObra[group]=normalizeQuantities(raw?.maoObra?.[group]||[], 'funcao').items;
+  data.equipamentos={lista:normalizeQuantities(raw?.equipamentos?.lista||[],'item').items};data.atividades=raw?.atividades||[];data.comentarios=raw?.comentarios||[];data.ocorrencias=raw?.ocorrencias||[];
+  data.midia={logo:safeImage(raw?.midia?.logo),fotos:(raw?.midia?.fotos||[]).filter(p=>safeImage(p.src)),assinaturas:Object.fromEntries(['exec','sup','fisc'].map(key=>[key,safeImage(raw?.midia?.assinaturas?.[key])]))};return data;
+}
+async function gerarPDFSelecionado(){
+  if(pdfGenerating)return;const error=document.getElementById('pdfError');error.hidden=true;
+  if(mediaReads){error.textContent='Aguarde o carregamento das imagens.';error.hidden=false;return;}
+  pdfGenerating=true;for(const id of ['pdfGenerate','pdfCancel'])document.getElementById(id).disabled=true;
+  try{
+    const mode=pdfMode(),current=coletarDados(),workId=obraAtualId,currentDate=activeDate;let selected=[{date:currentDate||current.campos.dataRelatorio,data:current}],period=currentDate||'sem-data';
+    if(mode==='range'){
+      const {start,end}=intervaloPDF();const fresh=await db.collection('rdos').where('obraId','==',workId).get();
+      const selection=selecionarRDOsPDF(fresh.docs.map(d=>[d.id,d.data()]),start,end,current,workId,currentDate);
+      if(!selection.selected.length)throw Error('Nenhum RDO encontrado neste período.');
+      if(selection.missing.length&&!confirm('Serão incluídos '+selection.selected.length+' RDO(s). Não há RDO nos dias '+selection.missing.map(formatBR).join(', ')+'. Gerar PDF apenas com os dias disponíveis?'))return;
+      selected=selection.selected;period=start+' a '+end;
+    }
+    try{await persistDraft();}catch{notice('Rascunho local indisponível. O PDF usará os dados exibidos.');}
+    const root=document.getElementById('pdfReport');root.replaceChildren();root.setAttribute('aria-hidden','false');
+    for(const item of selected){const article=pdfElement('article',undefined,'pdf-daily');article.dataset.date=item.date||'';buildPDF(dadosParaPDF(item.data,item.date),article);root.append(article);}
+    await Promise.all([...root.querySelectorAll('img')].map(img=>img.decode().catch(()=>{})));
+    const previous=document.title;document.title='RDO - '+(current.campos.obra||'Obra')+' - '+period;
+    window.addEventListener('afterprint',()=>{document.title=previous;root.setAttribute('aria-hidden','true');},{once:true});document.getElementById('pdfOptions').close();window.print();
+  }catch(e){error.textContent='Não foi possível gerar o PDF. '+e.message;error.hidden=false;}
+  finally{pdfGenerating=false;for(const id of ['pdfGenerate','pdfCancel'])document.getElementById(id).disabled=false;}
 }
 
 loading=true;buildGroup('gridDireta','direta',MAO_OBRA_DIRETA);buildGroup('gridConstrutora','construtora',MAO_OBRA_CONSTRUTORA);buildGroup('gridIndireta','indireta',MAO_OBRA_INDIRETA);buildGroup('gridEquip','equip',EQUIPAMENTOS);addAtividade();calcularQuantitativos();calcularDatas();atualizarBadges();
